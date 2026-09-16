@@ -30,6 +30,7 @@
 :root{ --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
        --ui:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
 *{ box-sizing:border-box; }
+[hidden]{ display:none !important; }  /* class rules (e.g. .icon-btn display:flex) otherwise beat the UA [hidden] rule */
 html,body{ height:100%; }
 body{ margin:0; background:var(--c-bg); color:var(--c-text); font-family:var(--ui); font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased; }
 .app{ display:flex; flex-direction:column; height:100%; min-height:560px; }
@@ -41,11 +42,14 @@ button{ font-family:inherit; }
 .brand h1{ font-size:16px; font-weight:700; margin:0; }
 .brand h1 span{ color:var(--c-accent); }
 .brand .ver{ font-family:var(--mono); font-size:10px; color:var(--c-header-muted); }
-.target{ display:flex; align-items:center; gap:8px; }
-.stopbox{ position:relative; min-width:230px; }
-.stopbox input,.reftime{ width:100%; background:var(--c-header-input); border:1px solid var(--c-header-line); color:var(--c-header-text); border-radius:8px; padding:8px 10px; font-size:13px; outline:none; font-family:var(--ui); }
-.reftime{ width:auto; font-family:var(--mono); color-scheme:dark; }
-.stopbox input:focus,.reftime:focus{ border-color:var(--c-accent); }
+.target{ display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+.stopbox{ position:relative; min-width:230px; align-self:center; }
+.stopbox input{ width:100%; background:var(--c-header-input); border:1px solid var(--c-header-line); color:var(--c-header-text); border-radius:8px; padding:8px 10px; font-size:13px; outline:none; font-family:var(--ui); }
+.stopbox input:focus{ border-color:var(--c-accent); }
+.span{ display:flex; align-items:flex-end; gap:7px; }
+.vdiv{ width:1px; height:30px; background:var(--c-header-line); align-self:center; margin:0 3px; flex:none; }
+.tval{ width:82px; } .dval{ width:138px; }
+.field input[type="time"],.field input[type="date"]{ color-scheme:dark; }
 .geo-list{ position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--c-card); border:1px solid var(--c-border); border-radius:9px; box-shadow:var(--shadow-lg); z-index:1200; overflow:hidden; max-height:320px; overflow-y:auto; }
 .geo-list.hidden{ display:none; }
 .geo-item{ padding:8px 11px; cursor:pointer; display:flex; flex-direction:column; gap:1px; border-bottom:1px solid var(--c-border); }
@@ -58,7 +62,10 @@ button{ font-family:inherit; }
 .field label{ font-size:9px; text-transform:uppercase; letter-spacing:.7px; color:var(--c-header-muted); }
 .field input{ background:var(--c-header-input); border:1px solid var(--c-header-line); color:var(--c-header-text); border-radius:6px; padding:5px 7px; font-size:12px; font-family:var(--mono); outline:none; }
 .field input:focus{ border-color:var(--c-accent); }
-.field .mini{ width:52px; }
+.field .mini{ width:58px; text-align:center; }
+/* Drop the number spinners — they crowd the field, appear on hover, and clip the value. */
+.field input[type="number"]{ -moz-appearance:textfield; }
+.field input[type="number"]::-webkit-outer-spin-button,.field input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
 .tools{ display:flex; gap:6px; }
 .icon-btn{ background:var(--c-header-input); border:1px solid var(--c-header-line); color:var(--c-header-text); width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
 .icon-btn:hover{ border-color:var(--c-accent); }
@@ -69,10 +76,14 @@ button{ font-family:inherit; }
 .col{ display:flex; flex-direction:column; min-height:0; background:var(--c-panel); border-right:1px solid var(--c-border); }
 .col-dep{ width:266px; flex:none; }
 .col-xf{ width:392px; flex:none; background:var(--c-panel-2); }
-.col-head{ display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--c-border); background:var(--c-panel); flex:none; }
-.step-no{ width:20px; height:20px; border-radius:50%; background:var(--c-accent); color:var(--c-accent-ink); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; }
+.col-head{ display:flex; align-items:center; gap:8px; height:41px; padding:0 14px; border-bottom:1px solid var(--c-border); background:var(--c-panel); flex:none; }
 .col-head .ttl{ font-size:12px; text-transform:uppercase; letter-spacing:.6px; font-weight:700; }
 .col-head .sub{ font-family:var(--mono); font-size:11px; color:var(--c-faint); margin-left:auto; }
+/* Left-panel tabs: the direction selector doubles as the header (the active tab names the board). */
+.paneltabs{ display:flex; gap:4px; height:41px; padding:0 8px; border-bottom:1px solid var(--c-border); background:var(--c-panel); flex:none; }
+.paneltabs button{ appearance:none; border:none; background:none; cursor:pointer; padding:0 8px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--c-muted); border-bottom:2px solid transparent; margin-bottom:-1px; }
+.paneltabs button:hover{ color:var(--c-text); }
+.paneltabs button.on{ color:var(--c-accent-text); border-bottom-color:var(--c-accent); }
 .col-scroll{ overflow-y:auto; padding:11px; display:flex; flex-direction:column; gap:10px; }
 .hint{ color:var(--c-muted); font-size:12.5px; text-align:center; padding:22px 12px; }
 .hint.err{ color:var(--c-bad); }
@@ -233,33 +244,42 @@ button{ font-family:inherit; }
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.0</span></div>
+    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.1</span></div>
     <!-- Target: which stop, and at what moment — one group, matching font, no labels. -->
     <div class="target">
       <div class="stopbox">
         <input id="stopInput" type="text" placeholder="Search a stop place…" autocomplete="off"/>
         <div id="geoList" class="geo-list hidden"></div>
       </div>
-      <input id="refTime" type="datetime-local" class="reftime" title="Reference time"/>
+      <div class="vdiv"></div>
+      <div class="span" title="A time-of-day span within one date — the board never crosses the date boundary">
+        <div class="field"><label data-i18n="f.from">From</label><input id="qFrom" class="tval" type="time"/></div>
+        <div class="field"><label data-i18n="f.date">Date</label><input id="qDate" class="dval" type="date"/></div>
+        <div class="field"><label data-i18n="f.to">To</label><input id="qTo" class="tval" type="time"/></div>
+      </div>
     </div>
     <div class="fields">
-      <div class="field"><label data-i18n="f.back">− min</label><input id="wBack" class="mini" type="number" min="0" max="60" value="3"/></div>
-      <div class="field"><label data-i18n="f.fwd">+ min</label><input id="wFwd" class="mini" type="number" min="1" max="1440" value="10"/></div>
       <div class="field"><label data-i18n="f.walk">Walk min</label><input id="wWalk" class="mini" type="number" min="1" max="20" value="5"/></div>
-      <div class="tools"><button class="icon-btn lang" id="lang">EN</button><button class="icon-btn" id="theme" title="Toggle dark mode">◑</button></div>
+      <div class="field"><label data-i18n="f.wait">Wait min</label><input id="wWait" class="mini" type="number" min="1" max="180" value="15"/></div>
+      <!-- Language toggle hidden until translations are a real feature; wiring kept intact. -->
+      <div class="tools"><button class="icon-btn lang" id="lang" hidden>EN</button><button class="icon-btn" id="theme" title="Toggle dark mode">◑</button></div>
     </div>
   </header>
 
   <div class="work">
     <section class="col col-dep">
-      <div class="col-head"><span class="step-no">1</span><span class="ttl" id="depTitle">Arrivals</span><span class="sub" id="depWindow"></span></div>
+      <!-- The direction selector IS the panel header: two tabs, the active one names the board. -->
+      <div class="paneltabs" id="dirTabs" title="An interchange is symmetric — pick which end to browse from">
+        <button data-d="out" data-i18n="nav.arr">Arrivals</button>
+        <button data-d="in" data-i18n="nav.dep">Departures</button>
+      </div>
       <div class="col-scroll" id="depScroll">
         <div class="hint" id="depHint" data-i18n="hint.pickstop">Search and pick a stop place to list its departures.</div>
       </div>
     </section>
 
     <section class="col col-xf">
-      <div class="col-head"><span class="step-no">2</span><span class="ttl" data-i18n="c.interchanges">Connections</span><span class="sub" id="xfCount"></span></div>
+      <div class="col-head"><span class="ttl" data-i18n="c.interchanges">Connections</span><span class="sub" id="xfCount"></span></div>
       <div class="col-scroll" id="xfScroll">
         <div class="hint" id="xfHint" data-i18n="hint.pickdep">Pick a service to see the connections that meet it here.</div>
       </div>
@@ -298,7 +318,7 @@ const CONFIG = {
   // transferSlack: Entur's journey planner won't USE a transfer unless
   // depart − arrive − walk ≥ this (2 min), guaranteed interchanges excepted.
   // So it's the feasible/tight boundary: ≥ slack = the planner would route it.
-  connect:  { lookbackMin:12, maxWaitMin:15, transferSlack:120 },
+  connect:  { maxWaitMin:15, transferSlack:120 },
   detour:   { minEuclid:30, crossingAllowance:70, slope:0.30, excessFull:250, flagAt:0.5 },
   // Timetable smell: two DIFFERENT journeys scheduled at the SAME quay within this many
   // seconds share one bay at once — physically questionable unless the quay holds two vehicles.
@@ -349,29 +369,32 @@ function applyTheme(dark){
 
 /* ============================ i18n ======================================== */
 const STRINGS = {
-  en: { 'f.time':'Reference time','f.back':'− min','f.fwd':'+ min','f.walk':'Walk min',
+  en: { 'f.from':'From','f.to':'To','f.date':'Date','f.walk':'Walk min','f.wait':'Wait min',
         'c.departures':'Departures','c.interchanges':'Connections',
         'hint.pickstop':'Search and pick a stop place to list its services.',
         'hint.pickdep':'Pick a service to see the connections that meet it here.',
         'lg.walk':'walk path','lg.cf':'crow-flies (when walk is suspicious)',
         'x.feasible':'Possible','x.tight':'Missed','x.missed':'Impossible','x.flagged':'Flagged',
         'x.mode':'Mode','x.connection':'Connection','x.none':'Nothing meets this service in the window.',
-        'x.waitquay':'Wait at quay','dir.out':'Outgoing','dir.in':'Incoming',
+        'x.waitquay':'Wait at quay','nav.arr':'Arrivals','nav.dep':'Departures',
         'x.sort':'Sort','x.sortchrono':'Chronological','x.sortbuffer':'Buffer',
         'd.detail':'Connection detail','d.chosen':'Chosen departure' },
-  no: { 'f.time':'Referansetid','f.back':'− min','f.fwd':'+ min','f.walk':'Gange min',
+  no: { 'f.from':'Fra','f.to':'Til','f.date':'Dato','f.walk':'Gange min','f.wait':'Vente min',
         'c.departures':'Avganger','c.interchanges':'Forbindelser',
         'hint.pickstop':'Søk og velg et stoppested for å liste tjenestene.',
         'hint.pickdep':'Velg en tjeneste for å se byttene som møter den her.',
         'lg.walk':'gangvei','lg.cf':'luftlinje (når gangveien er mistenkelig)',
         'x.feasible':'Mulig','x.tight':'Bommet','x.missed':'Umulig','x.flagged':'Flagget',
         'x.mode':'Modus','x.connection':'Forbindelse','x.none':'Ingenting møter denne tjenesten i vinduet.',
-        'x.waitquay':'Vent på plattform','dir.out':'Avgående','dir.in':'Ankommende',
+        'x.waitquay':'Vent på plattform','nav.arr':'Ankomster','nav.dep':'Avganger',
         'x.sort':'Sortér','x.sortchrono':'Kronologisk','x.sortbuffer':'Buffer',
         'd.detail':'Forbindelsesdetaljer','d.chosen':'Valgt avgang' },
 };
-let LANG = (localStorage.getItem('ie-lang')==='no'||localStorage.getItem('ie-lang')==='en')
-  ? localStorage.getItem('ie-lang') : ((navigator.language||'').startsWith('no')?'no':'en');
+// Forced to English while the language toggle is hidden (NO translation isn't up to scratch
+// yet). To restore: bring back the locale/localStorage detection below and un-hide #lang.
+let LANG = 'en';
+// let LANG = (localStorage.getItem('ie-lang')==='no'||localStorage.getItem('ie-lang')==='en')
+//   ? localStorage.getItem('ie-lang') : ((navigator.language||'').startsWith('no')?'no':'en');
 function t(k){ return (STRINGS[LANG]&&STRINGS[LANG][k])||STRINGS.en[k]||k; }
 function applyI18n(){ document.querySelectorAll('[data-i18n]').forEach(function(el){
   const k=el.getAttribute('data-i18n'); if(el.placeholder!==undefined&&el.tagName==='INPUT') el.placeholder=t(k); else el.textContent=t(k); }); }
@@ -525,9 +548,21 @@ function DIR(){ return state.dir==='in'
   : { anchorAD:'arrivals', partnerAD:'departures', anchorTime:'arr', partnerTime:'dep', boardTitle:'Arrivals', partnerBack:false }; }
 
 /* ---------------------------------------------------------------- reference time */
-function refDate(){ const v=$('refTime').value; const d=v?new Date(v):new Date(); return isNaN(d)?new Date():d; }
-function initRefTime(){ const d=new Date(); d.setSeconds(0,0);
-  $('refTime').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes()); }
+// The board is a time-of-day span WITHIN one date — the date is the wall, never crossed.
+// Returns {start, range(sec)} from the From/Date/To inputs, clamped so To ≥ From, same day.
+function queryWindow(){
+  const date=$('qDate').value, from=$('qFrom').value||'00:00', to=$('qTo').value||'23:59';
+  let start=new Date(date+'T'+from+':00'); if(isNaN(start)){ start=new Date(); start.setSeconds(0,0); }
+  let end=new Date((date||start.toISOString().slice(0,10))+'T'+to+':00');
+  if(isNaN(end)||end<=start) end=new Date(start.getTime()+60000);  // guarantee a positive span
+  return { start:start, range:Math.round((end-start)/1000) };
+}
+function initQuery(){ const now=new Date();
+  const mins=now.getHours()*60+now.getMinutes();
+  const fm=Math.max(0,mins-5), tm=Math.min(23*60+59,mins+30);  // default: −5 min … +30 min, today
+  $('qDate').value=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  $('qFrom').value=pad(Math.floor(fm/60))+':'+pad(fm%60);
+  $('qTo').value=pad(Math.floor(tm/60))+':'+pad(tm%60); }
 
 /* ============================ step 1: board ============================== */
 function mapCall(c){ const sj=c.serviceJourney||{},ln=sj.line||{},q=c.quay||{},sp=q.stopPlace||{};
@@ -545,9 +580,7 @@ async function loadStop(stop){
   $('xfScroll').innerHTML='<div class="hint">'+t('hint.pickdep')+'</div>';
   $('xfCount').textContent=''; hideDetail();
   const d=DIR();
-  const ref=refDate(); const back=+$('wBack').value||0, fwd=+$('wFwd').value||10;
-  const start=new Date(ref.getTime()-back*60000), range=(back+fwd)*60;
-  $('depWindow').textContent=clock(start.toISOString())+'–'+clock(new Date(ref.getTime()+fwd*60000).toISOString());
+  const win=queryWindow(); const start=win.start, range=win.range;  // span shown by the From/To pickers themselves
   busy(true,'Loading '+d.boardTitle.toLowerCase()+'…');
   try{
     const data=await jp(boardQuery(d.anchorAD),{ id:stop.id, start:isoOffset(start), range:range });
@@ -559,47 +592,44 @@ async function loadStop(stop){
   }catch(e){ $('depScroll').innerHTML='<div class="hint err">'+esc(e.message)+'</div>'; }
   finally{ busy(false); }
 }
-function switchDir(dir){ if(dir===state.dir) return; state.dir=dir; localStorage.setItem('ie-dir',dir);
+function paintDirTabs(){ document.querySelectorAll('#dirTabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.d===state.dir); }); }
+function switchDir(dir){ if(dir===state.dir) return; state.dir=dir; localStorage.setItem('ie-dir',dir); paintDirTabs();
   state.selAnchor=null; state.interchanges=[]; state.selXf=null; hideDetail();
   $('xfScroll').innerHTML='<div class="hint">'+t('hint.pickdep')+'</div>'; $('xfCount').textContent='';
   if(state.stop) loadStop(state.stop); }
-// Widen the window forward by 10 min (the common "look a bit further ahead"), then reload.
-function widenWindow(){ const f=$('wFwd'); f.value=Math.min((+f.value||10)+10, +f.max||1440); if(state.stop) loadStop(state.stop); }
-// One click to the next service on very sparse stops: extend the forward window to
-// the end of the reference date (never crossing into tomorrow).
-function restOfToday(){ const ref=refDate(); const back=+$('wBack').value||0;
-  const eod=new Date(ref.getFullYear(),ref.getMonth(),ref.getDate(),23,59,0);
-  $('wFwd').value=Math.max(10, Math.round((eod-ref)/60000)); if(state.stop) loadStop(state.stop); }
+// To must not precede From — clamp the span whenever an input changes.
+function validateSpan(){ if($('qTo').value && $('qFrom').value && $('qTo').value < $('qFrom').value) $('qTo').value=$('qFrom').value; }
+// Push the To time later (clamped to end-of-day) — "look a bit further ahead".
+function bumpTo(mins){ const t=($('qTo').value||'00:00').split(':'); let tot=Math.min(23*60+59,(+t[0])*60+(+t[1])+mins);
+  $('qTo').value=pad(Math.floor(tot/60))+':'+pad(tot%60); if(state.stop) loadStop(state.stop); }
+function widenWindow(){ bumpTo(30); }
+// One click to the next service on very sparse stops: extend To to end of day (never past it).
+function restOfToday(){ $('qTo').value='23:59'; if(state.stop) loadStop(state.stop); }
 
 function renderBoard(){
   const d=DIR(); const box=$('depScroll'); const q=(box.__q||'');
-  $('depTitle').textContent=d.boardTitle;
   const modesPresent=Array.from(new Set(state.calls.map(function(c){return modeIcon(c.mode);})));
   const list=state.calls.filter(function(c){
     if(state.boardHidden.has(modeIcon(c.mode))) return false;
     if(q){ const s=(c.lineNo+' '+c.lineName+' '+c.dest).toLowerCase(); if(s.indexOf(q)===-1) return false; }
     return true; })
-    // Chronological (earliest first) by the EFFECTIVE time — real-time if present, else aimed.
-    // OTP windows the board on the real-time value (a late service enters the window by its
-    // expected time), so ordering on the same basis makes the list scroll as things happen;
-    // the raw OTP order is by the vehicle's dwell/departure time, which reads jumbled here.
-    .sort(function(a,b){ return new Date(anchorExpIso(a)||anchorTimeIso(a)) - new Date(anchorExpIso(b)||anchorTimeIso(b)); });
+    // Chronological (earliest first) by the AIMED time shown BIG on each card, real-time only
+    // breaking ties — so the prominent times read in order. (Any app-side sort also overrides
+    // OTP's raw dwell/departure order, which reads jumbled against the arrival times shown.)
+    .sort(function(a,b){ return (new Date(anchorTimeIso(a))-new Date(anchorTimeIso(b)))
+      || (new Date(anchorExpIso(a)||anchorTimeIso(a))-new Date(anchorExpIso(b)||anchorTimeIso(b))); });
   // Basic filters first (mode chips, then text) — consistent with the right panel.
   let html='<div class="chips" id="boardModeChips">'
     +modesPresent.map(function(m){ return '<button class="chip" data-mode="'+m+'"'+(state.boardHidden.has(m)?' aria-pressed="false"':' aria-pressed="true"')+'><svg><use href="#ic-'+m+'"/></svg>'+m+'</button>'; }).join('')+'</div>';
   html+='<div class="filterbox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
     +'<input id="depFilter" placeholder="line or destination…" value="'+attr(q)+'"/></div>';
-  // Panel-specific control underneath: which end to anchor on.
-  html+='<div class="dirseg" id="dirSeg" title="An interchange is symmetric — pick which end to browse from">'
-    +'<button data-d="out"'+(state.dir==='out'?' class="on"':'')+'>'+t('dir.out')+'</button>'
-    +'<button data-d="in"'+(state.dir==='in'?' class="on"':'')+'>'+t('dir.in')+'</button></div>';
   if(!list.length){
     // Distinguish "the query found nothing" (offer to widen) from "filtered to nothing".
     if(state.calls.length===0)
       html+='<div class="hint">Nothing in the window.'
         +'<div style="display:flex;gap:8px;margin-top:10px;justify-content:center">'
-        +'<button class="more" id="widenBtn">↔ +10 min</button>'
-        +'<button class="more" id="todayBtn">↦ Rest of today</button></div></div>';
+        +'<button class="more" id="widenBtn">↔ +30 min</button>'
+        +'<button class="more" id="todayBtn">↦ Rest of day</button></div></div>';
     else
       html+='<div class="hint">No matches — clear the mode/text filters above.</div>';
   }
@@ -619,7 +649,6 @@ function renderBoard(){
   if($('todayBtn')) $('todayBtn').addEventListener('click',restOfToday);
   $('boardModeChips').addEventListener('click',function(e){ const c=e.target.closest('.chip'); if(!c)return; const m=c.dataset.mode;
     state.boardHidden.has(m)?state.boardHidden.delete(m):state.boardHidden.add(m); renderBoard(); });
-  $('dirSeg').addEventListener('click',function(e){ const b=e.target.closest('button'); if(b) switchDir(b.dataset.d); });
   const f=$('depFilter'); f.addEventListener('input',debounce(function(){ box.__q=f.value.toLowerCase(); const p=f.selectionStart; renderBoard(); const nf=$('depFilter'); nf.focus(); try{nf.setSelectionRange(p,p);}catch(_){} },180));
   box.querySelectorAll('.dep').forEach(function(el){ el.addEventListener('click',function(){ selectAnchor(state.calls[+el.dataset.i]); }); });
 }
@@ -657,8 +686,14 @@ async function selectAnchor(anchor){
     const stops=[state.stop.id].concat(
       Array.from(stopDist.keys()).sort(function(a,b){ return stopDist.get(a)-stopDist.get(b); }).slice(0,CONFIG.limits.nearbyStops));
     // partner calls across the neighbourhood, windowed relative to the anchor
-    // ('out': departures AFTER the anchor arrives; 'in': arrivals BEFORE it departs)
-    const W=CONFIG.connect.lookbackMin*60;
+    // ('out': departures AFTER the anchor arrives; 'in': arrivals BEFORE it departs).
+    // The window must cover the FULL candidate horizon — a partner up to maxWait away plus
+    // the time to walk the max reach — or a valid connection just past it is never even
+    // fetched. (This hid a ferry leaving 13 min after a bus arrived at Veiesund kai, when the
+    // window was a flat 12 min < the 15-min maxWait the filter allows.) Derived from the same
+    // limits the candidate filter below uses, so query and filter can't disagree.
+    const maxWait=(+$('wWait').value||CONFIG.connect.maxWaitMin)*60, maxReach=(+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*1.4;
+    const W=Math.ceil(maxWait + maxReach/CONFIG.defaults.walkSpeed);
     const pStart=d.partnerBack?new Date(anchorT-W*1000):new Date(anchorT);
     const adata=await jp(partnerQuery(stops,d.partnerAD),{ start:isoOffset(pStart), range:W });
     let partners=[]; const seen=new Set();
@@ -669,8 +704,7 @@ async function selectAnchor(anchor){
         // dedupe (a multimodal parent aggregates its children's calls)
         const pt=partnerTimeIso(call); const ck=(call.sjId||'')+'@'+(call.quayId||'')+'@'+(pt||'');
         if(seen.has(ck)) return; seen.add(ck); partners.push(call); }); });
-    // candidate filter: departure ≥ arrival, different service, within reach
-    const maxWait=CONFIG.connect.maxWaitMin*60, maxReach=(+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*1.4;
+    // candidate filter: departure ≥ arrival, different service, within reach (maxWait/maxReach above)
     let cand=partners.filter(function(p){ const ptIso=partnerTimeIso(p); if(!ptIso||!p.lat) return false; if(p.sjId===anchor.sjId) return false;
       const pt=new Date(ptIso).getTime(); const depT=partnerIsDep?pt:anchorT, arrT=partnerIsDep?anchorT:pt;
       if(depT<arrT) return false; if((depT-arrT)/1000>maxWait+maxReach/CONFIG.defaults.walkSpeed) return false;
@@ -693,6 +727,7 @@ async function selectAnchor(anchor){
       const walkSec=w?w.dur:(p._euclid/CONFIG.defaults.walkSpeed), walkDist=w?w.dist:null;
       const pt=new Date(partnerTimeIso(p)).getTime(); const depT=partnerIsDep?pt:anchorT, arrT=partnerIsDep?anchorT:pt;
       const buf=(depT-arrT)/1000-walkSec;
+      if(buf>maxWait) return;  // actual wait exceeds "Wait min" — too long to stand waiting for this one
       const cls=buf<0?'miss':(buf<CONFIG.connect.transferSlack?'warn':'ok');
       const pExp=partnerExpIso(p)?new Date(partnerExpIso(p)).getTime():null; let expBuf=null;
       if(pExp!=null&&anchorExp!=null){ const depE=partnerIsDep?pExp:anchorExp, arrE=partnerIsDep?anchorExp:pExp; expBuf=(depE-arrE)/1000-walkSec; }
@@ -722,15 +757,17 @@ function visibleXf(){ const self=state;
     if(x.flagged && self.connHidden.has('flag')) return false;
     if(self.lineQ){ const s=((x.a.lineNo||'')+' '+(x.a.lineName||'')+' '+(x.a.dest||'')+' '+(x.a.mode||'')).toLowerCase(); if(s.indexOf(self.lineQ)===-1) return false; }
     return true; });
-  // 'chrono' (default): by the EFFECTIVE time shown in the connection column (real-time if
-  //   present, else aimed), ascending — scroll the list in the order the services happen.
+  // 'chrono' (default): by the AIMED time shown BIG on the card (the one the user reads),
+  //   real-time only breaking ties — so the prominent times run top-to-bottom in order.
+  //   (Keying on the small real-time made the big times look unsorted: 14:15, 14:15, 14:14…)
   // 'buffer': by planned buffer ascending — the same idea, but adjusted for the walk time
   //   (departure − arrival − walk), so the tightest connection sorts first.
   const pDep=(DIR().partnerTime==='dep');
-  const eff=function(x){ return pDep ? new Date(x.depExp||x.depTime) : new Date(x.arrExp||x.arrTime); };
+  const aim=function(x){ return new Date(pDep?x.depTime:x.arrTime).getTime(); };
+  const live=function(x){ return new Date(pDep?(x.depExp||x.depTime):(x.arrExp||x.arrTime)).getTime(); };
   vis.sort(self.xfSort==='buffer'
     ? function(x,y){ return x.buf-y.buf; }
-    : function(x,y){ return eff(x)-eff(y); });
+    : function(x,y){ return (aim(x)-aim(y))||(live(x)-live(y)); });
   return vis; }
 
 function renderInterchanges(){
@@ -890,7 +927,7 @@ function renderDetail(x){
       +'<div class="idrow"><b>Line</b> '+esc(svc.lineId||'?')+'</div>'
       +'<div class="idrow"><b>ServiceJourney</b> '+esc(svc.sjId||'?')+'</div></div>'; };
   const el=$('detail'); el.classList.remove('hidden');
-  el.innerHTML='<div class="detail-head"><span class="step-no">3</span><span class="ttl">'+t('d.detail')+'</span><button class="x" id="detailX">✕</button></div>'
+  el.innerHTML='<div class="detail-head"><span class="ttl">'+t('d.detail')+'</span><button class="x" id="detailX">✕</button></div>'
     +'<div class="detail-body">'
     +legHtml(arrivalSvc, x.arrTime, x.arrExp, 'arrives', arrIsAnchor)
     +(x.sameQuay
@@ -963,8 +1000,12 @@ geoList.addEventListener('click',function(e){ const it=e.target.closest('.geo-it
   const r=geoResults[+it.dataset.i]; $('stopInput').value=r.name; geoList.classList.add('hidden'); loadStop({id:r.id,name:r.name}); });
 document.addEventListener('click',function(e){ if(!e.target.closest('.stopbox')) geoList.classList.add('hidden'); });
 
-// re-run on control changes if a stop is loaded
-['refTime','wBack','wFwd','wWalk'].forEach(function(id){ $(id).addEventListener('change',function(){ if(state.stop) loadStop(state.stop); }); });
+// Direction tabs (static header) — switch which end of the interchange to browse from.
+$('dirTabs').addEventListener('click',function(e){ const b=e.target.closest('button'); if(b) switchDir(b.dataset.d); });
+// The time span reloads the board (To clamped ≥ From); walk/wait only change the connection
+// search, so they re-run it for the current anchor (no board reload, keep the selection).
+['qDate','qFrom','qTo'].forEach(function(id){ $(id).addEventListener('change',function(){ validateSpan(); if(state.stop) loadStop(state.stop); }); });
+['wWalk','wWait'].forEach(function(id){ $(id).addEventListener('change',function(){ if(state.selAnchor) selectAnchor(state.selAnchor); else if(state.stop) loadStop(state.stop); }); });
 
 // theme + lang
 (function(){ dark=localStorage.getItem('ie-theme')==='dark'; applyTheme(dark);
@@ -978,7 +1019,7 @@ $('lang').addEventListener('click',function(){ LANG=LANG==='en'?'no':'en'; local
 (function(){ const s=$('mapBg'); Object.keys(BG).forEach(function(n){ const o=document.createElement('option'); o.value=n; o.textContent=n; s.appendChild(o); }); })();
 
 /* ============================ boot ======================================== */
-applyI18n(); initRefTime();
+applyI18n(); initQuery(); paintDirTabs();
 mapApi=createMap(); mapApi.setVariant(dark);
 window.__ie={ state:state, CONFIG:CONFIG };   // debug hook
 })();
