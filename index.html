@@ -12,7 +12,11 @@
   style-src 'self' 'unsafe-inline' https://unpkg.com;
   img-src 'self' data: https://*.arcgisonline.com;
   connect-src 'self' https://api.entur.io;
+  base-uri 'self';
+  object-src 'none';
 "/>
+<!-- frame-ancestors omitted: it is ignored in a <meta> CSP (needs an HTTP header, which a
+     static GitHub-Pages file can't set). Add it at the server/CDN layer for clickjacking cover. -->
 <title>Connection Explorer</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -35,9 +39,11 @@ html,body{ height:100%; }
 body{ margin:0; background:var(--c-bg); color:var(--c-text); font-family:var(--ui); font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased; }
 .app{ display:flex; flex-direction:column; height:100%; min-height:560px; }
 button{ font-family:inherit; }
+/* One visible keyboard-focus ring for every interactive element (there was none). */
+:focus-visible{ outline:2px solid var(--c-accent); outline-offset:2px; }
 
 /* command bar */
-.bar{ background:var(--c-header); color:var(--c-header-text); display:flex; align-items:center; gap:14px; padding:0 14px; height:56px; flex:none; flex-wrap:wrap; }
+.bar{ background:var(--c-header); color:var(--c-header-text); display:flex; align-items:center; gap:14px; padding:6px 14px; min-height:56px; flex:none; flex-wrap:wrap; }
 .brand{ display:flex; align-items:baseline; gap:8px; }
 .brand h1{ font-size:16px; font-weight:700; margin:0; }
 .brand h1 span{ color:var(--c-accent); }
@@ -77,7 +83,7 @@ button{ font-family:inherit; }
 .col-dep{ width:266px; flex:none; }
 .col-xf{ width:392px; flex:none; background:var(--c-panel-2); }
 .col-head{ display:flex; align-items:center; gap:8px; height:41px; padding:0 14px; border-bottom:1px solid var(--c-border); background:var(--c-panel); flex:none; }
-.col-head .ttl{ font-size:12px; text-transform:uppercase; letter-spacing:.6px; font-weight:700; }
+.col-head .ttl{ font-size:12px; text-transform:uppercase; letter-spacing:.6px; font-weight:700; margin:0; }
 .col-head .sub{ font-family:var(--mono); font-size:11px; color:var(--c-faint); margin-left:auto; }
 /* Left-panel tabs: the direction selector doubles as the header (the active tab names the board). */
 .paneltabs{ display:flex; gap:4px; height:41px; padding:0 8px; border-bottom:1px solid var(--c-border); background:var(--c-panel); flex:none; }
@@ -91,7 +97,6 @@ button{ font-family:inherit; }
 /* mode line-tag: mode = ICON (neutral), colour reserved for alerts */
 .linetag{ display:inline-flex; align-items:center; gap:4px; font-family:var(--mono); font-weight:700; font-size:11.5px; color:var(--c-text); border:1px solid var(--c-border-strong); background:var(--c-card-2); border-radius:6px; padding:2px 7px; white-space:nowrap; }
 .linetag svg{ width:14px; height:14px; flex:none; }
-.linetag.lg{ font-size:13px; padding:3px 9px; } .linetag.lg svg{ width:16px; height:16px; }
 .linetag.noline{ color:var(--c-muted); font-weight:600; }
 
 /* shared service-card grammar (board, interchange cards, detail legs)
@@ -108,8 +113,8 @@ button{ font-family:inherit; }
 .layover{ font-size:11px; color:var(--c-muted); margin-top:3px; display:flex; align-items:center; gap:4px; }
 .layover b{ color:var(--c-text); font-weight:600; }
 
-/* board (arrivals/departures) */
-.dep{ display:block; background:var(--c-card); border:1px solid var(--c-border); border-radius:9px; padding:8px 10px; cursor:pointer; }
+/* board (arrivals/departures) — a real <button> for keyboard/AT, reset to look like a card */
+.dep{ display:block; width:100%; text-align:left; font:inherit; color:inherit; appearance:none; background:var(--c-card); border:1px solid var(--c-border); border-radius:9px; padding:8px 10px; cursor:pointer; }
 .dep:hover{ border-color:var(--c-accent); }
 .dep[aria-selected="true"]{ border-color:var(--c-accent); background:var(--c-accent-soft); box-shadow:inset 0 0 0 1px var(--c-accent); }
 /* direction toggle: which end of the interchange to anchor on */
@@ -121,14 +126,6 @@ button{ font-family:inherit; }
 .filterbox input{ border:none; background:transparent; color:var(--c-text); font-size:12.5px; width:100%; outline:none; }
 .filterbox input::placeholder{ color:var(--c-faint); }
 .filterbox svg{ color:var(--c-faint); flex:none; }
-
-/* anchor context */
-.anchor{ background:var(--c-card); border:1px solid var(--c-accent); border-left:4px solid var(--c-accent); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow); }
-.anchor .k{ font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:var(--c-accent-text); font-weight:700; }
-.anchor .row{ display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
-.anchor .t{ font-family:var(--mono); font-weight:700; font-size:15px; }
-.anchor .dest b{ font-weight:600; }
-.anchor .meta{ font-family:var(--mono); font-size:10.5px; color:var(--c-muted); margin-top:5px; }
 
 /* tiles */
 .tiles{ display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
@@ -155,8 +152,8 @@ button{ font-family:inherit; }
 .chip[aria-pressed="false"] svg{ opacity:.55; }
 .flt-lbl{ font-size:9px; text-transform:uppercase; letter-spacing:.7px; color:var(--c-muted); font-weight:600; margin-bottom:5px; }
 
-/* interchange cards */
-.xf{ background:var(--c-card); border:1px solid var(--c-border); border-radius:10px; padding:9px 11px 9px 13px; position:relative; cursor:pointer; box-shadow:var(--shadow); }
+/* interchange cards — also a real <button>, reset to look like a card */
+.xf{ display:block; width:100%; text-align:left; font:inherit; color:inherit; appearance:none; background:var(--c-card); border:1px solid var(--c-border); border-radius:10px; padding:9px 11px 9px 13px; position:relative; cursor:pointer; box-shadow:var(--shadow); }
 .xf::before{ content:""; position:absolute; left:0; top:9px; bottom:9px; width:4px; border-radius:4px; }
 .xf.ok::before{ background:var(--c-ok);} .xf.warn::before{ background:var(--c-warn);} .xf.miss::before{ background:var(--c-muted);}
 .xf.guar::before{ background:var(--c-guar);}  /* confirmed guaranteed overrides the buffer stripe */
@@ -227,6 +224,7 @@ button{ font-family:inherit; }
 .busy .card{ background:var(--c-card); border:1px solid var(--c-border); border-radius:10px; padding:16px 22px; font-size:13px; color:var(--c-text); box-shadow:var(--shadow-lg); }
 
 @media (max-width:1000px){ .work{ flex-wrap:wrap; } .col-dep{ width:42%; } .col-xf{ width:58%; } .map-wrap{ flex-basis:100%; min-height:360px; order:3; } .detail{ top:10px; } }
+@media (max-width:760px){ .fields{ margin-left:0; } .target,.fields{ flex:1 1 100%; } .stopbox{ flex:1 1 200px; min-width:160px; } }
 @media (max-width:620px){ .col-dep,.col-xf{ width:100%; max-height:42vh; } }
 </style>
 </head>
@@ -248,44 +246,46 @@ button{ font-family:inherit; }
     <!-- Target: which stop, and at what moment — one group, matching font, no labels. -->
     <div class="target">
       <div class="stopbox">
-        <input id="stopInput" type="text" placeholder="Search a stop place…" autocomplete="off"/>
-        <div id="geoList" class="geo-list hidden"></div>
+        <input id="stopInput" type="text" placeholder="Search a stop place…" autocomplete="off"
+               aria-label="Search a stop place" role="combobox" aria-expanded="false"
+               aria-controls="geoList" aria-autocomplete="list"/>
+        <div id="geoList" class="geo-list hidden" role="listbox" aria-label="Stop place results"></div>
       </div>
       <div class="vdiv"></div>
       <div class="span" title="A time-of-day span within one date — the board never crosses the date boundary">
-        <div class="field"><label data-i18n="f.from">From</label><input id="qFrom" class="tval" type="time"/></div>
-        <div class="field"><label data-i18n="f.date">Date</label><input id="qDate" class="dval" type="date"/></div>
-        <div class="field"><label data-i18n="f.to">To</label><input id="qTo" class="tval" type="time"/></div>
+        <div class="field"><label for="qFrom" data-i18n="f.from">From</label><input id="qFrom" class="tval" type="time"/></div>
+        <div class="field"><label for="qDate" data-i18n="f.date">Date</label><input id="qDate" class="dval" type="date"/></div>
+        <div class="field"><label for="qTo" data-i18n="f.to">To</label><input id="qTo" class="tval" type="time"/></div>
       </div>
     </div>
     <div class="fields">
-      <div class="field"><label data-i18n="f.walk">Walk min</label><input id="wWalk" class="mini" type="number" min="1" max="20" value="5"/></div>
-      <div class="field"><label data-i18n="f.wait">Wait min</label><input id="wWait" class="mini" type="number" min="1" max="180" value="15"/></div>
+      <div class="field"><label for="wWalk" data-i18n="f.walk">Walk min</label><input id="wWalk" class="mini" type="number" min="1" max="20" value="5"/></div>
+      <div class="field"><label for="wWait" data-i18n="f.wait">Wait min</label><input id="wWait" class="mini" type="number" min="1" max="180" value="15"/></div>
       <!-- Language toggle hidden until translations are a real feature; wiring kept intact. -->
-      <div class="tools"><button class="icon-btn lang" id="lang" hidden>EN</button><button class="icon-btn" id="theme" title="Toggle dark mode">◑</button></div>
+      <div class="tools"><button class="icon-btn lang" id="lang" hidden>EN</button><button class="icon-btn" id="theme" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">◑</button></div>
     </div>
   </header>
 
-  <div class="work">
-    <section class="col col-dep">
+  <main class="work">
+    <section class="col col-dep" aria-label="Service board">
       <!-- The direction selector IS the panel header: two tabs, the active one names the board. -->
-      <div class="paneltabs" id="dirTabs" title="An interchange is symmetric — pick which end to browse from">
-        <button data-d="out" data-i18n="nav.arr">Arrivals</button>
-        <button data-d="in" data-i18n="nav.dep">Departures</button>
+      <div class="paneltabs" id="dirTabs" role="tablist" aria-label="Board direction" title="An interchange is symmetric — pick which end to browse from">
+        <button role="tab" aria-selected="true" data-d="out" data-i18n="nav.arr">Arrivals</button>
+        <button role="tab" aria-selected="false" data-d="in" data-i18n="nav.dep">Departures</button>
       </div>
-      <div class="col-scroll" id="depScroll">
+      <div class="col-scroll" id="depScroll" role="tabpanel" aria-label="Services">
         <div class="hint" id="depHint" data-i18n="hint.pickstop">Search and pick a stop place to list its departures.</div>
       </div>
     </section>
 
-    <section class="col col-xf">
-      <div class="col-head"><span class="ttl" data-i18n="c.interchanges">Connections</span><span class="sub" id="xfCount"></span></div>
+    <section class="col col-xf" aria-label="Connections">
+      <div class="col-head"><h2 class="ttl" data-i18n="c.interchanges">Connections</h2><span class="sub" id="xfCount"></span></div>
       <div class="col-scroll" id="xfScroll">
         <div class="hint" id="xfHint" data-i18n="hint.pickdep">Pick a service to see the connections that meet it here.</div>
       </div>
     </section>
 
-    <div class="map-wrap">
+    <div class="map-wrap" role="region" aria-label="Map">
       <div id="map"></div>
       <div class="bg-ctl"><select id="mapBg"></select></div>
       <div class="map-note hidden" id="mapNote"></div>
@@ -293,10 +293,10 @@ button{ font-family:inherit; }
         <div class="row"><span class="sw"></span> <span data-i18n="lg.walk">walk path</span></div>
         <div class="row"><span class="sw cf"></span> <span data-i18n="lg.cf">crow-flies (when walk is suspicious)</span></div>
       </div>
-      <aside class="detail hidden" id="detail"></aside>
-      <div class="busy" id="busy"><div class="card" id="busyMsg">Working…</div></div>
+      <aside class="detail hidden" id="detail" role="dialog" aria-label="Connection detail" tabindex="-1"></aside>
+      <div class="busy" id="busy" role="status" aria-live="polite"><div class="card" id="busyMsg">Working…</div></div>
     </div>
-  </div>
+  </main>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -309,26 +309,29 @@ button{ font-family:inherit; }
 /* Everything a deployment might change lives here: endpoints, client name,
    thresholds, and the two colour palettes. Swap these and nothing else. */
 const CONFIG = {
-  clientName: 'entur-interchange-explorer',
+  clientName: 'entur-ror-connection-explorer',
   endpoints: {
     journeyPlanner: 'https://api.entur.io/journey-planner/v3/graphql',
     geocoder:       'https://api.entur.io/geocoder/v3',
   },
-  defaults: { backMin:3, fwdMin:10, walkMin:5, walkSpeed:1.3 /* m/s */ },
+  defaults: { walkMin:5, walkSpeed:1.3 /* m/s */, radiusPad:1.25, reachPad:1.4 },
   // transferSlack: Entur's journey planner won't USE a transfer unless
   // depart − arrive − walk ≥ this (2 min), guaranteed interchanges excepted.
   // So it's the feasible/tight boundary: ≥ slack = the planner would route it.
   connect:  { maxWaitMin:15, transferSlack:120 },
-  detour:   { minEuclid:30, crossingAllowance:70, slope:0.30, excessFull:250, flagAt:0.5 },
+  detour:   { minEuclid:30, crossingAllowance:70, slope:0.30, excessFull:250, flagAt:0.5, strongAt:0.75 },
   // Timetable smell: two DIFFERENT journeys scheduled at the SAME quay within this many
   // seconds share one bay at once — physically questionable unless the quay holds two vehicles.
   smell:    { sameBaySec:60 },
+  board:    { layoverSec:60 },  // show a layover note when a vehicle dwells ≥ this
   // Guaranteed/constrained interchanges live only on computed trip legs, so they're
   // probed on-inspection (one whitelisted trip per opened card). Only the failing-
   // but-plausible band is worth checking: a guarantee can hold a departure a few
   // minutes, not half an hour — so buffer in (−bandMin, transferSlack).
   guaranteed: { bandMin:20, searchWindow:20 },
-  limits:   { nearbyStops:40, walkQueries:120, renderCap:200, walkConcurrency:6 },
+  // boardCap/partnerCap = numberOfDepartures ceilings; walkFailWarn = show a "verdicts
+  // may be approximate" banner when this fraction of walk queries fail (e.g. rate-limited).
+  limits:   { nearbyStops:40, walkQueries:120, renderCap:200, walkConcurrency:6, boardCap:250, partnerCap:150, walkFailWarn:0.3 },
 };
 
 /* Entur brand palette (linje.entur.no). Semantic green/amber are harmonised here
@@ -337,7 +340,7 @@ const CONFIG = {
 const THEME = {
   light: {
     '--c-bg':'#ffffff', '--c-panel':'#f2f3f7', '--c-panel-2':'#ecedf3', '--c-card':'#ffffff', '--c-card-2':'#f7f8fb',
-    '--c-text':'#181c56', '--c-muted':'#5a5f7a', '--c-faint':'#9a9fb8',
+    '--c-text':'#181c56', '--c-muted':'#5a5f7a', '--c-faint':'#6b7091',  /* faint darkened to clear AA on card bg */
     '--c-border':'#e3e5ee', '--c-border-strong':'#d0d3e0',
     '--c-accent':'#ff5959', '--c-accent-ink':'#ffffff', '--c-accent-text':'#c8323b', '--c-accent-soft':'#ffe9e9',
     '--c-header':'#181c56', '--c-header-text':'#eef0fb', '--c-header-muted':'#9aa0c8', '--c-header-line':'#33386f', '--c-header-input':'#ffffff14',
@@ -350,7 +353,7 @@ const THEME = {
   },
   dark: {
     '--c-bg':'#0e1030', '--c-panel':'#141640', '--c-panel-2':'#101235', '--c-card':'#1b1e50', '--c-card-2':'#181a48',
-    '--c-text':'#e6e8fb', '--c-muted':'#a3a8cf', '--c-faint':'#6f75a0',
+    '--c-text':'#e6e8fb', '--c-muted':'#a3a8cf', '--c-faint':'#9298c2',  /* faint lightened to clear AA on card bg */
     '--c-border':'#2b2f68', '--c-border-strong':'#3a3f80',
     '--c-accent':'#ff6b6b', '--c-accent-ink':'#2a0d0d', '--c-accent-text':'#ff8f8f', '--c-accent-soft':'#3a1a2a',
     '--c-header':'#080a24', '--c-header-text':'#e6e8fb', '--c-header-muted':'#8a90c0', '--c-header-line':'#2a2e66', '--c-header-input':'#ffffff10',
@@ -370,7 +373,7 @@ function applyTheme(dark){
 /* ============================ i18n ======================================== */
 const STRINGS = {
   en: { 'f.from':'From','f.to':'To','f.date':'Date','f.walk':'Walk min','f.wait':'Wait min',
-        'c.departures':'Departures','c.interchanges':'Connections',
+        'c.interchanges':'Connections',
         'hint.pickstop':'Search and pick a stop place to list its services.',
         'hint.pickdep':'Pick a service to see the connections that meet it here.',
         'lg.walk':'walk path','lg.cf':'crow-flies (when walk is suspicious)',
@@ -378,9 +381,9 @@ const STRINGS = {
         'x.mode':'Mode','x.connection':'Connection','x.none':'Nothing meets this service in the window.',
         'x.waitquay':'Wait at quay','nav.arr':'Arrivals','nav.dep':'Departures',
         'x.sort':'Sort','x.sortchrono':'Chronological','x.sortbuffer':'Buffer',
-        'd.detail':'Connection detail','d.chosen':'Chosen departure' },
+        'd.detail':'Connection detail' },
   no: { 'f.from':'Fra','f.to':'Til','f.date':'Dato','f.walk':'Gange min','f.wait':'Vente min',
-        'c.departures':'Avganger','c.interchanges':'Forbindelser',
+        'c.interchanges':'Forbindelser',
         'hint.pickstop':'Søk og velg et stoppested for å liste tjenestene.',
         'hint.pickdep':'Velg en tjeneste for å se byttene som møter den her.',
         'lg.walk':'gangvei','lg.cf':'luftlinje (når gangveien er mistenkelig)',
@@ -388,7 +391,7 @@ const STRINGS = {
         'x.mode':'Modus','x.connection':'Forbindelse','x.none':'Ingenting møter denne tjenesten i vinduet.',
         'x.waitquay':'Vent på plattform','nav.arr':'Ankomster','nav.dep':'Avganger',
         'x.sort':'Sortér','x.sortchrono':'Kronologisk','x.sortbuffer':'Buffer',
-        'd.detail':'Forbindelsesdetaljer','d.chosen':'Valgt avgang' },
+        'd.detail':'Forbindelsesdetaljer' },
 };
 // Forced to English while the language toggle is hidden (NO translation isn't up to scratch
 // yet). To restore: bring back the locale/localStorage detection below and un-hide #lang.
@@ -455,17 +458,20 @@ async function runPool(items,worker,concurrency){ const res=[]; let idx=0;
   await Promise.all(Array.from({length:Math.min(concurrency,items.length)},next)); return res; }
 
 /* ============================ api ========================================= */
-async function jp(query,variables){
+async function jp(query,variables,signal){
   const r=await fetch(CONFIG.endpoints.journeyPlanner,{ method:'POST',
     headers:{'Content-Type':'application/json','ET-Client-Name':CONFIG.clientName},
-    body:JSON.stringify({query:query,variables:variables||{}}) });
+    body:JSON.stringify({query:query,variables:variables||{}}), signal:signal });
   if(!r.ok) throw new Error('Journey planner HTTP '+r.status);
-  const j=await r.json(); if(j.errors&&j.errors.length) throw new Error(j.errors[0].message||'GraphQL error');
+  const j=await r.json();
+  // Keep partial data when present — a batched (aliased) query can return valid data
+  // alongside a per-alias error, and one bad neighbour shouldn't wipe the whole batch.
+  if(!j.data && j.errors && j.errors.length) throw new Error(j.errors[0].message||'GraphQL error');
   return j.data;
 }
-async function geoAutocomplete(q){
+async function geoAutocomplete(q,signal){
   const u=CONFIG.endpoints.geocoder+'/autocomplete?limit=8&lang='+LANG+'&layers=stopPlace&q='+encodeURIComponent(q);
-  const r=await fetch(u,{ headers:{'ET-Client-Name':CONFIG.clientName} });
+  const r=await fetch(u,{ headers:{'ET-Client-Name':CONFIG.clientName}, signal:signal });
   if(!r.ok) throw new Error('Geocoder HTTP '+r.status);
   const j=await r.json(); return (j.features||[]).map(function(f){ const p=f.properties||{};
     return { id:p.id, name:(p.names&&(p.names.display||p.names.default))||p.id,
@@ -483,18 +489,22 @@ const EC_FIELDS =
 function boardQuery(ad){
   return 'query($id:String!,$start:DateTime!,$range:Int!){ stopPlace(id:$id){ id name latitude longitude'+
     ' quays{ id publicCode latitude longitude }'+
-    ' estimatedCalls(startTime:$start,timeRange:$range,numberOfDepartures:250,arrivalDeparture:'+ad+',includeCancelledTrips:false){'+
+    ' estimatedCalls(startTime:$start,timeRange:$range,numberOfDepartures:'+CONFIG.limits.boardCap+',arrivalDeparture:'+ad+',includeCancelledTrips:false){'+
     EC_FIELDS+' } } }';
 }
 const Q_NEARBY =
  'query($lat:Float!,$lon:Float!,$r:Float!){ quaysByRadius(latitude:$lat,longitude:$lon,radius:$r,first:250){ edges{ node{ distance'+
  ' quay{ id publicCode latitude longitude stopPlace{ id name } } } } } }';
 
-function partnerQuery(stopIds, ad){ // aliased stopPlace(...) batch of the OTHER side
-  const frag = function(alias,id){ return alias+':stopPlace(id:"'+id+'"){ id name'+
-    ' estimatedCalls(startTime:$start,timeRange:$range,numberOfDepartures:150,arrivalDeparture:'+ad+',includeCancelledTrips:false){'+
+// Aliased stopPlace(...) batch of the OTHER side. Returns {query, vars} with each stop id
+// passed as a GraphQL variable ($s0id …) rather than interpolated into the query literal.
+function partnerQuery(stopIds, ad){
+  const decl=stopIds.map(function(id,i){ return '$s'+i+'id:String!'; }).join(',');
+  const frag=function(i){ return 's'+i+':stopPlace(id:$s'+i+'id){ id name'+
+    ' estimatedCalls(startTime:$start,timeRange:$range,numberOfDepartures:'+CONFIG.limits.partnerCap+',arrivalDeparture:'+ad+',includeCancelledTrips:false){'+
     EC_FIELDS+' } }'; };
-  return 'query($start:DateTime!,$range:Int!){ '+stopIds.map(function(id,i){return frag('s'+i,id);}).join(' ')+' }';
+  const vars={}; stopIds.forEach(function(id,i){ vars['s'+i+'id']=id; });
+  return { query:'query($start:DateTime!,$range:Int!'+(decl?','+decl:'')+'){ '+stopIds.map(function(id,i){return frag(i);}).join(' ')+' }', vars:vars };
 }
 const Q_WALK =
  'query($from:String!,$to:String!){ trip(from:{place:$from},to:{place:$to},modes:{directMode:foot,transportModes:[]},'+
@@ -540,8 +550,16 @@ function detour(euclidM,walkM){
 const state={ stop:null, dir:(localStorage.getItem('ie-dir')==='in'?'in':'out'),
   calls:[], selAnchor:null, interchanges:[], selXf:null,
   boardHidden:new Set(), modeHidden:new Set(), connHidden:new Set(), lineQ:'', xfSort:(localStorage.getItem('ie-xfsort')==='buffer'?'buffer':'chrono'),
-  renderN:CONFIG.limits.renderCap, walkCache:new Map() };
+  renderN:CONFIG.limits.renderCap, walkCache:new Map(),
+  mainAbort:null, mainToken:0, boardTruncated:false, partnerTruncated:false, walkFailRatio:0, _fitAnchor:null };
 let mapApi=null, dark=false;
+// Cancel any in-flight board/connection load and open a fresh generation. A superseded run
+// bails when state.mainToken has moved on; the signal aborts its outstanding fetches so the
+// old (e.g. up to 120 walk-trip) requests stop wasting the strict `trip` quota.
+function beginMain(){ if(state.mainAbort) state.mainAbort.abort(); state.mainAbort=new AbortController();
+  return { signal:state.mainAbort.signal, token:++state.mainToken }; }
+function superseded(req){ return req.token!==state.mainToken; }
+function isAbort(e){ return e && (e.name==='AbortError'||e.message==='The user aborted a request.'); }
 // Per-direction wiring, so the flow code stays direction-agnostic.
 function DIR(){ return state.dir==='in'
   ? { anchorAD:'departures', partnerAD:'arrivals', anchorTime:'dep', partnerTime:'arr', boardTitle:'Departures', partnerBack:true }
@@ -576,23 +594,30 @@ function partnerTimeIso(c){ return DIR().partnerTime==='arr'?c.arr:c.dep; }
 function partnerExpIso(c){ return DIR().partnerTime==='arr'?c.arrExp:c.depExp; }
 
 async function loadStop(stop){
+  const req=beginMain();
   state.stop=stop; state.selAnchor=null; state.interchanges=[]; state.selXf=null; state.boardHidden.clear();
+  state.walkCache.clear(); state._fitAnchor=null;  // pairs are keyed globally, but bound memory to the current stop
   $('xfScroll').innerHTML='<div class="hint">'+t('hint.pickdep')+'</div>';
   $('xfCount').textContent=''; hideDetail();
   const d=DIR();
   const win=queryWindow(); const start=win.start, range=win.range;  // span shown by the From/To pickers themselves
   busy(true,'Loading '+d.boardTitle.toLowerCase()+'…');
   try{
-    const data=await jp(boardQuery(d.anchorAD),{ id:stop.id, start:isoOffset(start), range:range });
-    const sp=data.stopPlace; if(!sp) throw new Error('Stop not found');
-    state.stop.coord=[sp.latitude,sp.longitude]; state.stop.quays=sp.quays||[]; state.stop.name=sp.name;
-    state.calls=(sp.estimatedCalls||[]).map(mapCall).filter(function(c){ return anchorTimeIso(c); });
+    const data=await jp(boardQuery(d.anchorAD),{ id:stop.id, start:isoOffset(start), range:range }, req.signal);
+    if(superseded(req)) return;
+    const sp=data&&data.stopPlace; if(!sp) throw new Error('Stop not found');
+    state.stop.coord=(sp.latitude!=null&&sp.longitude!=null)?[sp.latitude,sp.longitude]:null;
+    state.stop.quays=sp.quays||[]; state.stop.name=sp.name;
+    const ec=sp.estimatedCalls||[];
+    state.boardTruncated = ec.length>=CONFIG.limits.boardCap;   // hit the numberOfDepartures ceiling
+    state.calls=ec.map(mapCall).filter(function(c){ return anchorTimeIso(c); });
     renderBoard();
-    focusMap([state.stop.coord]);
-  }catch(e){ $('depScroll').innerHTML='<div class="hint err">'+esc(e.message)+'</div>'; }
-  finally{ busy(false); }
+    if(state.stop.coord) focusMap([state.stop.coord]);
+  }catch(e){ if(isAbort(e)||superseded(req)) return;
+    $('depScroll').innerHTML='<div class="hint err">'+esc(e.message)+'</div>'; }
+  finally{ if(!superseded(req)) busy(false); }
 }
-function paintDirTabs(){ document.querySelectorAll('#dirTabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.d===state.dir); }); }
+function paintDirTabs(){ document.querySelectorAll('#dirTabs button').forEach(function(b){ const on=b.dataset.d===state.dir; b.classList.toggle('on',on); b.setAttribute('aria-selected',on?'true':'false'); }); }
 function switchDir(dir){ if(dir===state.dir) return; state.dir=dir; localStorage.setItem('ie-dir',dir); paintDirTabs();
   state.selAnchor=null; state.interchanges=[]; state.selXf=null; hideDetail();
   $('xfScroll').innerHTML='<div class="hint">'+t('hint.pickdep')+'</div>'; $('xfCount').textContent='';
@@ -600,7 +625,7 @@ function switchDir(dir){ if(dir===state.dir) return; state.dir=dir; localStorage
 // To must not precede From — clamp the span whenever an input changes.
 function validateSpan(){ if($('qTo').value && $('qFrom').value && $('qTo').value < $('qFrom').value) $('qTo').value=$('qFrom').value; }
 // Push the To time later (clamped to end-of-day) — "look a bit further ahead".
-function bumpTo(mins){ const t=($('qTo').value||'00:00').split(':'); let tot=Math.min(23*60+59,(+t[0])*60+(+t[1])+mins);
+function bumpTo(mins){ const parts=($('qTo').value||'00:00').split(':'); let tot=Math.min(23*60+59,(+parts[0])*60+(+parts[1])+mins);
   $('qTo').value=pad(Math.floor(tot/60))+':'+pad(tot%60); if(state.stop) loadStop(state.stop); }
 function widenWindow(){ bumpTo(30); }
 // One click to the next service on very sparse stops: extend To to end of day (never past it).
@@ -620,9 +645,13 @@ function renderBoard(){
       || (new Date(anchorExpIso(a)||anchorTimeIso(a))-new Date(anchorExpIso(b)||anchorTimeIso(b))); });
   // Basic filters first (mode chips, then text) — consistent with the right panel.
   let html='<div class="chips" id="boardModeChips">'
-    +modesPresent.map(function(m){ return '<button class="chip" data-mode="'+m+'"'+(state.boardHidden.has(m)?' aria-pressed="false"':' aria-pressed="true"')+'><svg><use href="#ic-'+m+'"/></svg>'+m+'</button>'; }).join('')+'</div>';
+    +modesPresent.map(function(m){ return '<button class="chip" data-mode="'+m+'" aria-label="Show '+esc(m)+' services"'+(state.boardHidden.has(m)?' aria-pressed="false"':' aria-pressed="true"')+'><svg><use href="#ic-'+m+'"/></svg>'+m+'</button>'; }).join('')+'</div>';
   html+='<div class="filterbox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
-    +'<input id="depFilter" placeholder="line or destination…" value="'+attr(q)+'"/></div>';
+    +'<input id="depFilter" aria-label="Filter services by line or destination" placeholder="line or destination…" value="'+attr(q)+'"/></div>';
+  if(state.stop && !state.stop.coord)
+    html+='<div class="hint err" style="padding:10px 12px 0">This stop has no coordinate, so walkable connections can’t be computed.</div>';
+  if(state.boardTruncated)
+    html+='<div class="hint" style="padding:8px 12px 0;font-size:11px">Showing the first '+CONFIG.limits.boardCap+' — narrow the time span to see the rest.</div>';
   if(!list.length){
     // Distinguish "the query found nothing" (offer to widen) from "filtered to nothing".
     if(state.calls.length===0)
@@ -639,10 +668,10 @@ function renderBoard(){
     // Outgoing shows arrival → note the later departure; Incoming shows departure → note the earlier arrival.
     const other=d.anchorTime==='arr'?c.dep:c.arr;
     let lay=null;
-    if(other&&anchorTimeIso(c)&&Math.abs(new Date(other)-new Date(anchorTimeIso(c)))>=60000)
+    if(other&&anchorTimeIso(c)&&Math.abs(new Date(other)-new Date(anchorTimeIso(c)))>=CONFIG.board.layoverSec*1000)
       lay=(d.anchorTime==='arr'?'departs ':'arrived ')+'<b>'+clock(other)+'</b>';
-    html+='<div class="dep" data-i="'+state.calls.indexOf(c)+'"'+(state.selAnchor===c?' aria-selected="true"':'')+'>'
-      +svcHead(c, anchorTimeIso(c), anchorExpIso(c), null, null, null, lay)+'</div>';
+    html+='<button type="button" class="dep" data-i="'+state.calls.indexOf(c)+'"'+(state.selAnchor===c?' aria-selected="true"':'')+'>'
+      +svcHead(c, anchorTimeIso(c), anchorExpIso(c), null, null, null, lay)+'</button>';
   });
   box.innerHTML=html;
   if($('widenBtn')) $('widenBtn').addEventListener('click',widenWindow);
@@ -660,6 +689,8 @@ function renderBoard(){
 async function selectAnchor(anchor){
   state.selAnchor=anchor; state.selXf=null; state.renderN=CONFIG.limits.renderCap; hideDetail();
   document.querySelectorAll('.dep').forEach(function(el){ el.setAttribute('aria-selected', state.calls[+el.dataset.i]===anchor?'true':'false'); });
+  if(!state.stop.coord){ $('xfScroll').innerHTML='<div class="hint err">This stop has no coordinate, so connections can’t be computed.</div>'; return; }
+  const req=beginMain();
   const d=DIR(); const partnerIsDep=(d.partnerTime==='dep');
   busy(true,'Finding interchanges…');
   try{
@@ -667,8 +698,9 @@ async function selectAnchor(anchor){
     const anchorExp=anchorExpIso(anchor)?new Date(anchorExpIso(anchor)).getTime():null;
     const anchorQuay=(state.stop.quays||[]).find(function(q){return q.id===anchor.quayId;})||{ id:anchor.quayId, latitude:state.stop.coord[0], longitude:state.stop.coord[1] };
     // neighbourhood by radius (crow-flies; padded walk reach)
-    const radius=Math.round((+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*1.25);
-    const near=await jp(Q_NEARBY,{ lat:state.stop.coord[0], lon:state.stop.coord[1], r:radius });
+    const radius=Math.round((+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*CONFIG.defaults.radiusPad);
+    const near=await jp(Q_NEARBY,{ lat:state.stop.coord[0], lon:state.stop.coord[1], r:radius }, req.signal);
+    if(superseded(req)) return;
     const quayMeta=new Map();
     // The selected stop's own quays. quaysByRadius reports these under the CHILD
     // stopplace ids of a multimodal parent — but their calls are already aggregated
@@ -692,18 +724,25 @@ async function selectAnchor(anchor){
     // fetched. (This hid a ferry leaving 13 min after a bus arrived at Veiesund kai, when the
     // window was a flat 12 min < the 15-min maxWait the filter allows.) Derived from the same
     // limits the candidate filter below uses, so query and filter can't disagree.
-    const maxWait=(+$('wWait').value||CONFIG.connect.maxWaitMin)*60, maxReach=(+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*1.4;
+    const maxWait=(+$('wWait').value||CONFIG.connect.maxWaitMin)*60, maxReach=(+$('wWalk').value||5)*60*CONFIG.defaults.walkSpeed*CONFIG.defaults.reachPad;
     const W=Math.ceil(maxWait + maxReach/CONFIG.defaults.walkSpeed);
     const pStart=d.partnerBack?new Date(anchorT-W*1000):new Date(anchorT);
-    const adata=await jp(partnerQuery(stops,d.partnerAD),{ start:isoOffset(pStart), range:W });
-    let partners=[]; const seen=new Set();
-    stops.forEach(function(id,i){ const sp=adata['s'+i]; if(!sp) return;
-      (sp.estimatedCalls||[]).forEach(function(c){ const call=mapCall(c); const qm=quayMeta.get(call.quayId)||{};
+    const pq=partnerQuery(stops,d.partnerAD);
+    const adata=await jp(pq.query, Object.assign({ start:isoOffset(pStart), range:W }, pq.vars), req.signal);
+    if(superseded(req)) return;
+    let partners=[]; const seen=new Set(); let partnerTrunc=false;
+    stops.forEach(function(id,i){ const sp=adata&&adata['s'+i]; if(!sp) return;
+      const ecs=sp.estimatedCalls||[]; if(ecs.length>=CONFIG.limits.partnerCap) partnerTrunc=true;
+      ecs.forEach(function(c){ const call=mapCall(c); const qm=quayMeta.get(call.quayId)||{};
         call.lat=call.lat||qm.lat; call.lon=call.lon||qm.lon; call.quayPub=call.quayPub||qm.pub;
         call.stopId=qm.stopId||call.stopId; call.stopName=qm.stopName||call.stopName;  // radius-resolved first, else the call's own stopPlace
-        // dedupe (a multimodal parent aggregates its children's calls)
-        const pt=partnerTimeIso(call); const ck=(call.sjId||'')+'@'+(call.quayId||'')+'@'+(pt||'');
-        if(seen.has(ck)) return; seen.add(ck); partners.push(call); }); });
+        // dedupe (a multimodal parent aggregates its children's calls) — only when we have an
+        // identifying field, so two id-less calls at the same time aren't collapsed into one.
+        const pt=partnerTimeIso(call); const idPart=(call.sjId||call.quayId);
+        const ck=(call.sjId||'')+'@'+(call.quayId||'')+'@'+(pt||'');
+        if(idPart){ if(seen.has(ck)) return; seen.add(ck); }
+        partners.push(call); }); });
+    state.partnerTruncated=partnerTrunc;
     // candidate filter: departure ≥ arrival, different service, within reach (maxWait/maxReach above)
     let cand=partners.filter(function(p){ const ptIso=partnerTimeIso(p); if(!ptIso||!p.lat) return false; if(p.sjId===anchor.sjId) return false;
       const pt=new Date(ptIso).getTime(); const depT=partnerIsDep?pt:anchorT, arrT=partnerIsDep?anchorT:pt;
@@ -712,15 +751,21 @@ async function selectAnchor(anchor){
     // walk is ARRIVAL quay → DEPARTURE quay ('out': anchor→partner; 'in': partner→anchor)
     const walkPair=function(p){ return partnerIsDep?{from:anchorQuay.id,to:p.quayId}:{from:p.quayId,to:anchorQuay.id}; };
     const pairs=Array.from(new Set(cand.map(function(p){ const wp=walkPair(p); return wp.from+'>'+wp.to; })));
+    let wFetched=0, wFail=0;
     await runPool(pairs.slice(0,CONFIG.limits.walkQueries), async function(key){
-      if(state.walkCache.has(key)) return; const parts=key.split('>'), from=parts[0], to=parts[1];
+      if(superseded(req)||state.walkCache.has(key)) return; const parts=key.split('>'), from=parts[0], to=parts[1];
       if(from===to){ state.walkCache.set(key,{ dur:0, dist:0, pts:null }); return; }  // same quay = no walk (self-route 400s)
-      try{ const w=await jp(Q_WALK,{ from:from, to:to }); const tp=(w.trip.tripPatterns||[])[0];
+      wFetched++;
+      try{ const w=await jp(Q_WALK,{ from:from, to:to }, req.signal); const tp=(w.trip.tripPatterns||[])[0];
         if(tp){ const pts=[]; (tp.legs||[]).forEach(function(l){ if(l.pointsOnLink&&l.pointsOnLink.points) pts.push.apply(pts,decodePolyline(l.pointsOnLink.points)); });
           state.walkCache.set(key,{ dur:tp.duration, dist:tp.streetDistance, pts:pts }); }
         else state.walkCache.set(key,null);
-      }catch(_){ state.walkCache.set(key,null); }
+      // A failed walk (e.g. rate-limited) falls back to a crow-flies estimate; count them so a
+      // material fraction can warn the user that verdicts may be approximate. Aborts don't count.
+      }catch(e){ if(isAbort(e)) return; state.walkCache.set(key,null); wFail++; }
     }, CONFIG.limits.walkConcurrency);
+    if(superseded(req)) return;
+    state.walkFailRatio = wFetched ? wFail/wFetched : 0;
     // build interchanges with verdict + detour
     const xf=[];
     cand.forEach(function(p){ const wp=walkPair(p); const w=state.walkCache.get(wp.from+'>'+wp.to); if(w===undefined) return;
@@ -743,9 +788,10 @@ async function selectAnchor(anchor){
         arrExp:  partnerIsDep?anchorExpIso(anchor):partnerExpIso(p),
         depExp:  partnerIsDep?partnerExpIso(p):anchorExpIso(anchor) }); });
     xf.sort(function(x,y){ const o={ok:0,warn:1,miss:2}; return (o[x.cls]-o[y.cls])||(x.buf-y.buf); });
+    if(superseded(req)) return;
     state.interchanges=xf; renderInterchanges(); drawMap();
-  }catch(e){ $('xfScroll').innerHTML='<div class="hint err">'+esc(e.message)+'</div>'; }
-  finally{ busy(false); }
+  }catch(e){ if(isAbort(e)||superseded(req)) return; $('xfScroll').innerHTML='<div class="hint err">'+esc(e.message)+'</div>'; }
+  finally{ if(!superseded(req)) busy(false); }
 }
 
 function visibleXf(){ const self=state;
@@ -763,8 +809,9 @@ function visibleXf(){ const self=state;
   // 'buffer': by planned buffer ascending — the same idea, but adjusted for the walk time
   //   (departure − arrival − walk), so the tightest connection sorts first.
   const pDep=(DIR().partnerTime==='dep');
-  const aim=function(x){ return new Date(pDep?x.depTime:x.arrTime).getTime(); };
-  const live=function(x){ return new Date(pDep?(x.depExp||x.depTime):(x.arrExp||x.arrTime)).getTime(); };
+  const ms=function(iso){ const t=new Date(iso).getTime(); return isNaN(t)?Infinity:t; };  // missing time sorts last, never NaN
+  const aim=function(x){ return ms(pDep?x.depTime:x.arrTime); };
+  const live=function(x){ return ms(pDep?(x.depExp||x.depTime):(x.arrExp||x.arrTime)); };
   vis.sort(self.xfSort==='buffer'
     ? function(x,y){ return x.buf-y.buf; }
     : function(x,y){ return (aim(x)-aim(y))||(live(x)-live(y)); });
@@ -785,17 +832,19 @@ function renderInterchanges(){
   // mode filter
   const modesPresent=Array.from(new Set(all.map(function(x){return modeIcon(x.a.mode);})));
   html+='<div><div class="flt-lbl">'+t('x.mode')+'</div><div class="chips" id="modeChips">'
-    +modesPresent.map(function(m){ return '<button class="chip" data-mode="'+m+'"'+(state.modeHidden.has(m)?' aria-pressed="false"':' aria-pressed="true"')+'><svg><use href="#ic-'+m+'"/></svg>'+m+'</button>'; }).join('')+'</div></div>';
-  html+='<div class="filterbox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="lineFilter" placeholder="filter to a line…" value="'+attr(state.lineQ)+'"/></div>';
+    +modesPresent.map(function(m){ return '<button class="chip" data-mode="'+m+'" aria-label="Show '+esc(m)+' connections"'+(state.modeHidden.has(m)?' aria-pressed="false"':' aria-pressed="true"')+'><svg><use href="#ic-'+m+'"/></svg>'+m+'</button>'; }).join('')+'</div></div>';
+  html+='<div class="filterbox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="lineFilter" aria-label="Filter connections by line" placeholder="filter to a line…" value="'+attr(state.lineQ)+'"/></div>';
+  const cchip=function(cls,key,label){ return '<button class="chip '+cls+'" data-c="'+key+'" aria-label="Show '+label.replace(/⚑ /,'')+' connections" aria-pressed="'+(!state.connHidden.has(key))+'">'+label+'</button>'; };
   html+='<div><div class="flt-lbl">'+t('x.connection')+'</div><div class="chips" id="connChips">'
-    +'<button class="chip ok" data-c="ok" aria-pressed="'+(!state.connHidden.has('ok'))+'">'+t('x.feasible')+'</button>'
-    +'<button class="chip warn" data-c="warn" aria-pressed="'+(!state.connHidden.has('warn'))+'">'+t('x.tight')+'</button>'
-    +'<button class="chip miss" data-c="miss" aria-pressed="'+(!state.connHidden.has('miss'))+'">'+t('x.missed')+'</button>'
-    +'<button class="chip" data-c="flag" aria-pressed="'+(!state.connHidden.has('flag'))+'">⚑ '+t('x.flagged')+'</button></div></div>';
-  html+='<div><div class="flt-lbl">'+t('x.sort')+'</div><div class="dirseg" id="xfSortSeg">'
-    +'<button data-s="chrono"'+(state.xfSort!=='buffer'?' class="on"':'')+'>'+t('x.sortchrono')+'</button>'
-    +'<button data-s="buffer"'+(state.xfSort==='buffer'?' class="on"':'')+'>'+t('x.sortbuffer')+'</button></div></div>';
+    +cchip('ok','ok',t('x.feasible'))+cchip('warn','warn',t('x.tight'))+cchip('miss','miss',t('x.missed'))+cchip('','flag','⚑ '+t('x.flagged'))+'</div></div>';
+  html+='<div><div class="flt-lbl">'+t('x.sort')+'</div><div class="dirseg" id="xfSortSeg" role="group" aria-label="Sort connections">'
+    +'<button data-s="chrono" aria-pressed="'+(state.xfSort!=='buffer')+'"'+(state.xfSort!=='buffer'?' class="on"':'')+'>'+t('x.sortchrono')+'</button>'
+    +'<button data-s="buffer" aria-pressed="'+(state.xfSort==='buffer')+'"'+(state.xfSort==='buffer'?' class="on"':'')+'>'+t('x.sortbuffer')+'</button></div></div>';
 
+  const notes=[];
+  if(state.walkFailRatio>=CONFIG.limits.walkFailWarn) notes.push('Some walk times couldn’t be fetched (possibly rate-limited) — affected verdicts fall back to a straight-line estimate.');
+  if(state.partnerTruncated) notes.push('Some neighbour stops hit the '+CONFIG.limits.partnerCap+'-service ceiling — narrow the time span for completeness.');
+  if(notes.length) html+='<div class="hint" style="text-align:left;padding:6px 2px;font-size:11px;color:var(--c-warn)">⚠ '+esc(notes.join(' '))+'</div>';
   if(!vis.length) html+='<div class="hint">'+t('x.none')+'</div>';
   html+='<div id="xfCards" style="display:flex;flex-direction:column;gap:9px">';
   const anchorClk=clock(anchorTimeIso(anchor));
@@ -810,7 +859,7 @@ function renderInterchanges(){
     const roleNote=partnerIsDep?('from your '+anchorClk):('to your '+anchorClk);
     const guar=(x.guaranteed&&typeof x.guaranteed==='object')?x.guaranteed:null;
     const gl=guarLevel(x.guaranteed);
-    html+='<div class="xf '+x.cls+(gl==='weak'?' guarweak':(gl?' guar':''))+'" data-k="'+state.interchanges.indexOf(x)+'"'+(state.selXf===x?' aria-selected="true"':'')+'>'
+    html+='<button type="button" class="xf '+x.cls+(gl==='weak'?' guarweak':(gl?' guar':''))+'" data-k="'+state.interchanges.indexOf(x)+'"'+(state.selXf===x?' aria-selected="true"':'')+'>'
       +svcHead(a, pAim, pLive, stopName, roleNote)
       +'<div class="xf-meta">'+(x.sameQuay?'<span class="pill">⏱ '+t('x.waitquay')+'</span>':'<span class="pill">🚶 '+wd+'</span>')
       +'<span class="pill"><span class="k">plan</span><span class="buf '+(x.cls==='ok'?'pos':x.cls==='warn'?'tt':'neg')+'">'+signed(x.buf)+'</span></span>'
@@ -818,9 +867,9 @@ function renderInterchanges(){
       +(gl==='weak'?'<span class="pill flagpill guarpill weak">⚠ '+(guar.maxWait==null?'guarantee · no wait time':'guarantee · won’t wait')+'</span>'
         : guar?'<span class="pill flagpill guarpill">⛨ '+(guar.staySeated?'Stay-seated':'Guaranteed'+(guar.maxWait?' ·'+Math.round(guar.maxWait/60)+'m':''))+'</span>':'')
       +(x.guaranteed==='checking'?'<span class="pill">⛨ checking…</span>':'')
-      +(x.flagged?'<span class="pill flagpill">⚑ long walk · '+(x.detour.conf>=0.75?'likely':'maybe')+'</span>':'')
+      +(x.flagged?'<span class="pill flagpill">⚑ long walk · '+(x.detour.conf>=CONFIG.detour.strongAt?'likely':'maybe')+'</span>':'')
       +(x.bayClash?'<span class="pill flagpill">⚠ same bay</span>':'')
-      +'</div></div>';
+      +'</div></button>';
   });
   html+='</div>';
   if(vis.length>state.renderN) html+='<button class="more" id="moreBtn">Show more ('+(vis.length-state.renderN)+')</button>';
@@ -867,29 +916,29 @@ async function resolveGuaranteed(x){
   const arrivalSvc=partnerIsDep?anchor:x.a, departSvc=partnerIsDep?x.a:anchor;
   if(!arrivalSvc.sjId||!departSvc.sjId||!arrivalSvc.lineId||!departSvc.lineId){ x.guaranteed=null; return; }
   const date=(x.arrTime||'').slice(0,10); if(!date){ x.guaranteed=null; return; }
+  const sig=state.mainAbort&&state.mainAbort.signal;  // a new anchor selection cancels a pending probe
   try{
     // 1. both journeys' calls, to pin the exact run (stop just before / after the transfer)
-    const q='{ a:serviceJourney(id:"'+arrivalSvc.sjId+'"){ estimatedCalls(date:"'+date+'"){ quay{id} aimedDepartureTime } }'
-           +' b:serviceJourney(id:"'+departSvc.sjId+'"){ estimatedCalls(date:"'+date+'"){ quay{id} } } }';
-    const sc=await jp(q,{});
+    const q='query($a:String!,$b:String!,$date:Date!){ a:serviceJourney(id:$a){ estimatedCalls(date:$date){ quay{id} aimedDepartureTime } }'
+           +' b:serviceJourney(id:$b){ estimatedCalls(date:$date){ quay{id} } } }';
+    const sc=await jp(q,{ a:arrivalSvc.sjId, b:departSvc.sjId, date:date }, sig);
     const aC=(sc.a&&sc.a.estimatedCalls)||[], dC=(sc.b&&sc.b.estimatedCalls)||[];
-    let ai=aC.findIndex(function(c){return c.quay.id===arrivalSvc.quayId;}); if(ai<0) ai=aC.length-1;
+    let ai=aC.findIndex(function(c){return c.quay&&c.quay.id===arrivalSvc.quayId;}); if(ai<0) ai=aC.length-1;
     const before=aC[Math.max(0,ai-1)]; if(!before||!before.aimedDepartureTime){ x.guaranteed=null; return; }
-    let di=dC.findIndex(function(c){return c.quay.id===departSvc.quayId;}); if(di<0) di=0;
-    const after=dC[Math.min(dC.length-1,di+1)]||dC[dC.length-1]; if(!after){ x.guaranteed=null; return; }
+    let di=dC.findIndex(function(c){return c.quay&&c.quay.id===departSvc.quayId;}); if(di<0) di=0;
+    const after=dC[Math.min(dC.length-1,di+1)]||dC[dC.length-1]; if(!after||!after.quay){ x.guaranteed=null; return; }
     // 2. whitelist the two lines so OTP can only build this transfer, and read the interchange
-    const tq='{ trip(from:{place:"'+before.quay.id+'"},to:{place:"'+after.quay.id+'"},dateTime:"'+before.aimedDepartureTime+'",'
-      +'searchWindow:'+CONFIG.guaranteed.searchWindow+',numTripPatterns:4,'
-      +'filters:[{select:[{lines:["'+arrivalSvc.lineId+'","'+departSvc.lineId+'"]}]}]){'
-      +' tripPatterns{ legs{ line{id} interchangeTo{ guaranteed staySeated maximumWaitTime } } } } }';
-    const tr=await jp(tq,{});
+    const tq='query($from:String!,$to:String!,$dt:DateTime!,$lines:[ID!]!){'
+      +' trip(from:{place:$from},to:{place:$to},dateTime:$dt,searchWindow:'+CONFIG.guaranteed.searchWindow+',numTripPatterns:4,'
+      +'filters:[{select:[{lines:$lines}]}]){ tripPatterns{ legs{ line{id} interchangeTo{ guaranteed staySeated maximumWaitTime } } } } }';
+    const tr=await jp(tq,{ from:before.quay.id, to:after.quay.id, dt:before.aimedDepartureTime, lines:[arrivalSvc.lineId, departSvc.lineId] }, sig);
     let found=null;
     (tr.trip.tripPatterns||[]).forEach(function(p){ if(found) return;
       (p.legs||[]).forEach(function(l){ if(found) return; const it=l.interchangeTo;
         if(it && (it.guaranteed||it.staySeated) && l.line && l.line.id===arrivalSvc.lineId)
           found={ guaranteed:!!it.guaranteed, staySeated:!!it.staySeated, maxWait:it.maximumWaitTime }; }); });
     x.guaranteed=found;
-  }catch(_){ x.guaranteed=null; }
+  }catch(e){ x.guaranteed = isAbort(e)?undefined:null; }
 }
 function renderDetail(x){
   const partnerIsDep=(DIR().partnerTime==='dep'); const anchor=state.selAnchor;
@@ -926,8 +975,8 @@ function renderDetail(x){
       +'<div class="idrow"><b>Quay</b> '+esc(svc.quayId||'?')+'</div>'
       +'<div class="idrow"><b>Line</b> '+esc(svc.lineId||'?')+'</div>'
       +'<div class="idrow"><b>ServiceJourney</b> '+esc(svc.sjId||'?')+'</div></div>'; };
-  const el=$('detail'); el.classList.remove('hidden');
-  el.innerHTML='<div class="detail-head"><span class="ttl">'+t('d.detail')+'</span><button class="x" id="detailX">✕</button></div>'
+  const el=$('detail'); const wasHidden=el.classList.contains('hidden'); el.classList.remove('hidden');
+  el.innerHTML='<div class="detail-head"><span class="ttl">'+t('d.detail')+'</span><button class="x" id="detailX" aria-label="Close detail" title="Close">✕</button></div>'
     +'<div class="detail-body">'
     +legHtml(arrivalSvc, x.arrTime, x.arrExp, 'arrives', arrIsAnchor)
     +(x.sameQuay
@@ -942,9 +991,14 @@ function renderDetail(x){
     +'<div class="verdict '+vcls+'">'+vtext+'</div>'
     +'</div>';
   $('detailX').addEventListener('click',hideDetail);
+  el.onkeydown=function(e){ if(e.key==='Escape'){ e.preventDefault(); hideDetail(); } };
+  if(wasHidden) el.focus();  // move focus in on open, but not on in-place re-renders (e.g. probe result)
 }
-function hideDetail(){ $('detail').classList.add('hidden'); if(state.selXf){ state.selXf=null;
-  document.querySelectorAll('.xf[aria-selected="true"]').forEach(function(el){el.setAttribute('aria-selected','false');}); drawMap(); } }
+function hideDetail(){ const card=document.querySelector('.xf[aria-selected="true"]');
+  $('detail').classList.add('hidden'); if(state.selXf){ state.selXf=null;
+  document.querySelectorAll('.xf[aria-selected="true"]').forEach(function(el){el.setAttribute('aria-selected','false');}); drawMap(); }
+  if(card) card.focus();  // return focus to the card that opened the panel
+}
 
 /* ============================ map drawing ================================= */
 let mapLayer=null;
@@ -976,29 +1030,41 @@ function drawMap(){
     else { L.polyline([ac,dc],{color:lc,weight:wDash,opacity:op,dashArray:'2 6'}).addTo(mapLayer); }
     if(x.flagged){ L.polyline([ac,dc],{color:getComputedStyle(document.documentElement).getPropertyValue('--c-faint').trim(),weight:1.4,opacity:0.8,dashArray:'2 6'}).addTo(mapLayer); }
     const m=L.marker(ac,{icon:pinIcon(x.a.mode,isSel?'sel':'')}).addTo(mapLayer)
-      .bindTooltip((x.a.lineNo||x.a.mode||'')+' · '+clock(partnerTimeIso(x.a)),{direction:'top',offset:[0,-8]});
+      .bindTooltip(esc((x.a.lineNo||x.a.mode||''))+' · '+clock(partnerTimeIso(x.a)),{direction:'top',offset:[0,-8]});  // esc: Leaflet sets tooltip innerHTML
     m.on('click',function(){ selectXf(x); });
   });
-  L.marker(dc,{icon:pinIcon(anchor.mode,'anchor')}).addTo(mapLayer).bindTooltip((anchor.lineNo||'')+' · '+clock(anchorTimeIso(anchor)),{direction:'top',offset:[0,-8]});
-  if(bounds.length>1 && !state.selXf) mapApi.map.fitBounds(bounds,{padding:[60,60],maxZoom:16});
+  L.marker(dc,{icon:pinIcon(anchor.mode,'anchor')}).addTo(mapLayer).bindTooltip(esc(anchor.lineNo||'')+' · '+clock(anchorTimeIso(anchor)),{direction:'top',offset:[0,-8]});
+  // Fit the view only when the anchor changed — not on every chip toggle (that re-zoomed jarringly).
+  if(bounds.length>1 && !state.selXf && state._fitAnchor!==anchor){ mapApi.map.fitBounds(bounds,{padding:[60,60],maxZoom:16}); state._fitAnchor=anchor; }
 }
 
 /* ============================ chrome ====================================== */
 function busy(on,msg){ $('busy').classList.toggle('on',on); if(msg)$('busyMsg').textContent=msg; }
 
 /* stop search */
-const geoList=$('geoList'); let geoResults=[];
-$('stopInput').addEventListener('input',debounce(async function(){ const q=$('stopInput').value.trim();
-  if(q.length<2){ geoList.classList.add('hidden'); return; }
-  try{ geoResults=await geoAutocomplete(q);
-    geoList.innerHTML=geoResults.map(function(r,i){ return '<div class="geo-item" data-i="'+i+'"><span class="n">'+esc(r.name)+'</span><span class="m">'+esc(r.id)+(r.locality?' · '+esc(r.locality):'')+'</span></div>'; }).join('')
-      || '<div class="geo-item"><span class="m">no matches</span></div>';
-    geoList.classList.remove('hidden');
-  }catch(e){ geoList.innerHTML='<div class="geo-item"><span class="m">'+esc(e.message)+'</span></div>'; geoList.classList.remove('hidden'); }
+const stopInput=$('stopInput'); const geoList=$('geoList'); let geoResults=[], geoActive=-1, geoAbort=null;
+function geoOpen(open){ geoList.classList.toggle('hidden',!open); stopInput.setAttribute('aria-expanded',open?'true':'false');
+  if(!open){ geoActive=-1; stopInput.removeAttribute('aria-activedescendant'); } }
+function paintGeoActive(){ Array.from(geoList.querySelectorAll('.geo-item')).forEach(function(el,i){ const on=i===geoActive; el.classList.toggle('active',on); el.setAttribute('aria-selected',on?'true':'false'); });
+  if(geoActive>=0){ stopInput.setAttribute('aria-activedescendant','geo-'+geoActive); const el=geoList.children[geoActive]; if(el&&el.scrollIntoView) el.scrollIntoView({block:'nearest'}); }
+  else stopInput.removeAttribute('aria-activedescendant'); }
+function chooseGeo(i){ const r=geoResults[i]; if(!r||!r.id) return; stopInput.value=r.name; geoOpen(false); loadStop({id:r.id,name:r.name}); }
+stopInput.addEventListener('input',debounce(async function(){ const q=stopInput.value.trim();
+  if(q.length<2){ geoOpen(false); return; }
+  if(geoAbort) geoAbort.abort(); geoAbort=new AbortController();  // its own controller — typing must not cancel a board load
+  try{ geoResults=await geoAutocomplete(q,geoAbort.signal);
+    geoList.innerHTML=geoResults.map(function(r,i){ return '<div class="geo-item" id="geo-'+i+'" role="option" aria-selected="false" data-i="'+i+'"><span class="n">'+esc(r.name)+'</span><span class="m">'+esc(r.id)+(r.locality?' · '+esc(r.locality):'')+'</span></div>'; }).join('')
+      || '<div class="geo-item" role="option" aria-disabled="true"><span class="m">no matches</span></div>';
+    geoActive=-1; geoOpen(true);
+  }catch(e){ if(e.name==='AbortError') return; geoList.innerHTML='<div class="geo-item"><span class="m">'+esc(e.message)+'</span></div>'; geoOpen(true); }
 },250));
-geoList.addEventListener('click',function(e){ const it=e.target.closest('.geo-item'); if(!it||it.dataset.i===undefined)return;
-  const r=geoResults[+it.dataset.i]; $('stopInput').value=r.name; geoList.classList.add('hidden'); loadStop({id:r.id,name:r.name}); });
-document.addEventListener('click',function(e){ if(!e.target.closest('.stopbox')) geoList.classList.add('hidden'); });
+stopInput.addEventListener('keydown',function(e){ const n=geoResults.length; if(geoList.classList.contains('hidden')||!n) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); geoActive=(geoActive+1)%n; paintGeoActive(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); geoActive=(geoActive-1+n)%n; paintGeoActive(); }
+  else if(e.key==='Enter'&&geoActive>=0){ e.preventDefault(); chooseGeo(geoActive); }
+  else if(e.key==='Escape'){ geoOpen(false); } });
+geoList.addEventListener('click',function(e){ const it=e.target.closest('.geo-item'); if(!it||it.dataset.i===undefined)return; chooseGeo(+it.dataset.i); });
+document.addEventListener('click',function(e){ if(!e.target.closest('.stopbox')) geoOpen(false); });
 
 // Direction tabs (static header) — switch which end of the interchange to browse from.
 $('dirTabs').addEventListener('click',function(e){ const b=e.target.closest('button'); if(b) switchDir(b.dataset.d); });
@@ -1009,7 +1075,8 @@ $('dirTabs').addEventListener('click',function(e){ const b=e.target.closest('but
 
 // theme + lang
 (function(){ dark=localStorage.getItem('ie-theme')==='dark'; applyTheme(dark);
-  $('theme').addEventListener('click',function(){ dark=!dark; applyTheme(dark); mapApi.setVariant(dark); localStorage.setItem('ie-theme',dark?'dark':'light'); });
+  $('theme').setAttribute('aria-pressed',dark?'true':'false');
+  $('theme').addEventListener('click',function(){ dark=!dark; applyTheme(dark); mapApi.setVariant(dark); localStorage.setItem('ie-theme',dark?'dark':'light'); $('theme').setAttribute('aria-pressed',dark?'true':'false'); });
 })();
 $('lang').textContent=LANG.toUpperCase();
 $('lang').addEventListener('click',function(){ LANG=LANG==='en'?'no':'en'; localStorage.setItem('ie-lang',LANG); $('lang').textContent=LANG.toUpperCase(); applyI18n();
@@ -1021,7 +1088,7 @@ $('lang').addEventListener('click',function(){ LANG=LANG==='en'?'no':'en'; local
 /* ============================ boot ======================================== */
 applyI18n(); initQuery(); paintDirTabs();
 mapApi=createMap(); mapApi.setVariant(dark);
-window.__ie={ state:state, CONFIG:CONFIG };   // debug hook
+if(/[?&]debug\b/.test(location.search)) window.__ie={ state:state, CONFIG:CONFIG };   // debug hook, opt-in via ?debug
 })();
 </script>
 </body>
