@@ -10,7 +10,7 @@
   default-src 'self';
   script-src 'self' 'unsafe-inline' https://unpkg.com;
   style-src 'self' 'unsafe-inline' https://unpkg.com;
-  img-src 'self' data: https://*.arcgisonline.com;
+  img-src 'self' data: https://*.arcgisonline.com https://*.tile.openstreetmap.org;
   connect-src 'self' https://api.entur.io;
   base-uri 'self';
   object-src 'none';
@@ -176,6 +176,14 @@ button{ font-family:inherit; }
 .map-wrap{ flex:1; position:relative; min-width:0; }
 #map{ position:absolute; inset:0; background:var(--c-map); }
 .leaflet-container{ background:var(--c-map); font-family:var(--ui); }
+/* map-dot tooltip — themed card matching the panels */
+.leaflet-tooltip.mtip{ background:var(--c-card); color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:9px; box-shadow:var(--shadow-lg); padding:7px 9px; }
+.leaflet-tooltip.mtip.leaflet-tooltip-top::before{ border-top-color:var(--c-card); }
+.leaflet-tooltip.mtip.leaflet-tooltip-bottom::before{ border-bottom-color:var(--c-card); }
+.mtip-head{ display:flex; align-items:flex-start; gap:7px; }
+.mtip-head .linetag,.mtip-head .mtip-dest{ margin-top:1px; }  /* nudge onto the aimed-time line, like the panels */
+.mtip-dest{ font-size:12.5px; color:var(--c-text); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mtip-sub{ font-size:10.5px; color:var(--c-muted); margin-top:4px; }
 .pin-ic{ display:flex; align-items:center; justify-content:center; background:var(--c-card); border:2px solid var(--c-node); color:var(--c-node); border-radius:50%; box-shadow:var(--shadow); }
 .pin-ic svg{ flex:none; display:block; }
 .pin-ic.anchor{ border-color:var(--c-accent); color:var(--c-accent); border-width:3px; }
@@ -511,22 +519,36 @@ const Q_WALK =
  'numTripPatterns:1,walkSpeed:'+CONFIG.defaults.walkSpeed+'){ tripPatterns{ duration streetDistance legs{ pointsOnLink{ points } } } } }';
 
 /* ============================ map ========================================= */
-const ESRI='https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/';
-const ESRI_ATTR='Esri, HERE, Garmin, OpenStreetMap contributors';
+const ESRI='https://services.arcgisonline.com/ArcGIS/rest/services/';
+// Each background: light[] (+ optional dark[]) tile URLs (base first, optional label overlay),
+// its attribution, and any per-layer options. Esri templates are {z}/{y}/{x}; OSM is {z}/{x}/{y}.
 const BG={
-  'Grey': { light:[ESRI+'World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',ESRI+'World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
-            dark:[ESRI+'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',ESRI+'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'] },
+  'Grey': {
+    light:[ESRI+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', ESRI+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
+    dark: [ESRI+'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',  ESRI+'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
+    attr:'Esri, HERE, Garmin, OpenStreetMap contributors', maxNativeZoom:16 },
+  'Standard': {  // regular OpenStreetMap
+    light:['https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+    attr:'© OpenStreetMap contributors', subdomains:'abc', maxNativeZoom:19 },
+  'Aerial': {    // Esri World Imagery + a place-name/boundary reference overlay for legibility
+    light:[ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+    attr:'Esri, Maxar, Earthstar Geographics', maxNativeZoom:18 },
 };
 function createMap(){
   const map=L.map('map',{ zoomControl:true }).setView([59.91,10.75],13);
-  let layer=null;
-  function setVariant(dark){ if(layer) map.removeLayer(layer); layer=L.layerGroup();
-    BG.Grey[dark?'dark':'light'].forEach(function(u,i){ L.tileLayer(u,{maxNativeZoom:16,maxZoom:19,attribution:i===0?ESRI_ATTR:undefined}).addTo(layer); });
+  let layer=null, curDark=false;
+  let bgName=BG[localStorage.getItem('ie-mapbg')]?localStorage.getItem('ie-mapbg'):'Grey';
+  function draw(){ if(layer) map.removeLayer(layer); layer=L.layerGroup();
+    const bg=BG[bgName]||BG.Grey; const urls=(curDark&&bg.dark)?bg.dark:bg.light;  // no dark tiles → use light (aerial/OSM)
+    urls.forEach(function(u,i){ L.tileLayer(u,{ maxNativeZoom:bg.maxNativeZoom||16, maxZoom:19, subdomains:bg.subdomains||'abc', attribution:i===0?bg.attr:undefined }).addTo(layer); });
     layer.addTo(map); }
   // Leaflet needs the container's final size; it is 0×0 until layout settles.
   setTimeout(function(){ map.invalidateSize(); },0);
   window.addEventListener('resize',function(){ map.invalidateSize(); });
-  return { map:map, setVariant:setVariant };
+  return { map:map,
+    setVariant:function(d){ curDark=d; draw(); },
+    setBg:function(name){ if(BG[name]){ bgName=name; localStorage.setItem('ie-mapbg',name); draw(); } },
+    getBg:function(){ return bgName; } };
 }
 
 /* ============================ detour curve ================================ */
@@ -1010,6 +1032,15 @@ function focusMap(coords){ const pts=coords.filter(Boolean); if(!pts.length)retu
   if(pts.length===1) mapApi.map.setView(pts[0],15); else mapApi.map.fitBounds(pts,{padding:[50,50]}); }
 function mapApi_pan(c){ mapApi.map.panTo(c,{animate:true}); }
 function walkColor(){ return getComputedStyle(document.documentElement).getPropertyValue('--c-walk').trim(); }
+// Map-dot tooltip: the same line presentation as the panels (mode tag + destination + time),
+// plus the stop name and quay. Nothing more — no flags or verdicts on the dots. Data is esc()'d;
+// the tag/structure markup is authored (same contract as the render functions).
+function markerTip(svc, stopName, aimIso, liveIso){
+  // Same grammar as the panels: time first (big, live under it) · mode tag · destination.
+  const head=timeBlock(aimIso,liveIso,svc.rt)+tagHtml(svc.mode,svc.lineNo)
+    +(svc.dest?'<span class="mtip-dest">'+esc(svc.dest)+'</span>':'');
+  const sub=[]; if(stopName) sub.push(esc(stopName)); if(svc.quayPub) sub.push('Quay '+esc(svc.quayPub));
+  return '<div class="mtip-head">'+head+'</div>'+(sub.length?'<div class="mtip-sub">'+sub.join(' · ')+'</div>':''); }
 function drawMap(){
   if(mapLayer) mapApi.map.removeLayer(mapLayer); mapLayer=L.layerGroup().addTo(mapApi.map);
   const anchor=state.selAnchor;
@@ -1030,10 +1061,11 @@ function drawMap(){
     else { L.polyline([ac,dc],{color:lc,weight:wDash,opacity:op,dashArray:'2 6'}).addTo(mapLayer); }
     if(x.flagged){ L.polyline([ac,dc],{color:getComputedStyle(document.documentElement).getPropertyValue('--c-faint').trim(),weight:1.4,opacity:0.8,dashArray:'2 6'}).addTo(mapLayer); }
     const m=L.marker(ac,{icon:pinIcon(x.a.mode,isSel?'sel':'')}).addTo(mapLayer)
-      .bindTooltip(esc((x.a.lineNo||x.a.mode||''))+' · '+clock(partnerTimeIso(x.a)),{direction:'top',offset:[0,-8]});  // esc: Leaflet sets tooltip innerHTML
+      .bindTooltip(markerTip(x.a, x.a.stopName||state.stop.name, partnerTimeIso(x.a), partnerExpIso(x.a)),{direction:'top',offset:[0,-10],className:'mtip'});
     m.on('click',function(){ selectXf(x); });
   });
-  L.marker(dc,{icon:pinIcon(anchor.mode,'anchor')}).addTo(mapLayer).bindTooltip(esc(anchor.lineNo||'')+' · '+clock(anchorTimeIso(anchor)),{direction:'top',offset:[0,-8]});
+  L.marker(dc,{icon:pinIcon(anchor.mode,'anchor')}).addTo(mapLayer)
+    .bindTooltip(markerTip(anchor, state.stop.name, anchorTimeIso(anchor), anchorExpIso(anchor)),{direction:'top',offset:[0,-12],className:'mtip'});
   // Fit the view only when the anchor changed — not on every chip toggle (that re-zoomed jarringly).
   if(bounds.length>1 && !state.selXf && state._fitAnchor!==anchor){ mapApi.map.fitBounds(bounds,{padding:[60,60],maxZoom:16}); state._fitAnchor=anchor; }
 }
@@ -1082,12 +1114,14 @@ $('lang').textContent=LANG.toUpperCase();
 $('lang').addEventListener('click',function(){ LANG=LANG==='en'?'no':'en'; localStorage.setItem('ie-lang',LANG); $('lang').textContent=LANG.toUpperCase(); applyI18n();
   if(state.selAnchor) renderInterchanges(); else if(state.stop) renderBoard(); });
 
-// background select
-(function(){ const s=$('mapBg'); Object.keys(BG).forEach(function(n){ const o=document.createElement('option'); o.value=n; o.textContent=n; s.appendChild(o); }); })();
-
 /* ============================ boot ======================================== */
 applyI18n(); initQuery(); paintDirTabs();
 mapApi=createMap(); mapApi.setVariant(dark);
+// background select — populate, reflect the persisted choice, and switch on change.
+(function(){ const s=$('mapBg'); s.setAttribute('aria-label','Map background');
+  Object.keys(BG).forEach(function(n){ const o=document.createElement('option'); o.value=n; o.textContent=n; s.appendChild(o); });
+  s.value=mapApi.getBg();
+  s.addEventListener('change',function(){ mapApi.setBg(s.value); }); })();
 if(/[?&]debug\b/.test(location.search)) window.__ie={ state:state, CONFIG:CONFIG };   // debug hook, opt-in via ?debug
 })();
 </script>
