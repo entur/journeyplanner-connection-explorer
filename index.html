@@ -927,13 +927,16 @@ function drawMap(){
   const aQuay=(state.stop.quays||[]).find(function(q){return q.id===anchor.quayId;});
   const dc = aQuay?[aQuay.latitude,aQuay.longitude]:state.stop.coord;
   const vis=visibleXf(); const col=walkColor();
+  const acc=getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim();  // Coral #ff5959
   const bounds=[dc];
   vis.forEach(function(x){ if(!x.a.lat)return; const ac=[x.a.lat,x.a.lon]; bounds.push(ac);
     const isSel=state.selXf===x, hasSel=!!state.selXf;
-    // Selected walk stands out; once something is selected the rest recede.
-    const wReal = isSel?6:(hasSel?2:3.2), wDash = isSel?5:(hasSel?1.6:2.6), op = isSel?1:(hasSel?0.32:0.62);
-    if(x.pts&&x.pts.length>1){ L.polyline(x.pts,{color:col,weight:wReal,opacity:op}).addTo(mapLayer); }
-    else { L.polyline([ac,dc],{color:col,weight:wDash,opacity:op,dashArray:'2 6'}).addTo(mapLayer); }
+    // Selected walk stands out by COLOUR (Coral, matching the selected quay pins), so it
+    // need not be much thicker; once something is selected the other (blue) links recede.
+    const lc = isSel?acc:col;
+    const wReal = isSel?4.5:(hasSel?2:3.2), wDash = isSel?4:(hasSel?1.6:2.6), op = isSel?1:(hasSel?0.32:0.62);
+    if(x.pts&&x.pts.length>1){ L.polyline(x.pts,{color:lc,weight:wReal,opacity:op}).addTo(mapLayer); }
+    else { L.polyline([ac,dc],{color:lc,weight:wDash,opacity:op,dashArray:'2 6'}).addTo(mapLayer); }
     if(x.flagged){ L.polyline([ac,dc],{color:getComputedStyle(document.documentElement).getPropertyValue('--c-faint').trim(),weight:1.4,opacity:0.8,dashArray:'2 6'}).addTo(mapLayer); }
     const m=L.marker(ac,{icon:pinIcon(x.a.mode,isSel?'sel':'')}).addTo(mapLayer)
       .bindTooltip((x.a.lineNo||x.a.mode||'')+' · '+clock(partnerTimeIso(x.a)),{direction:'top',offset:[0,-8]});
