@@ -10,8 +10,10 @@
   default-src 'self';
   script-src 'self' 'unsafe-inline' https://unpkg.com;
   style-src 'self' 'unsafe-inline' https://unpkg.com;
-  img-src 'self' data: https://*.arcgisonline.com https://*.tile.openstreetmap.org;
-  connect-src 'self' https://api.entur.io;
+  worker-src blob: https://unpkg.com;
+  child-src blob:;
+  img-src 'self' data: blob: https://*.arcgisonline.com https://*.tile.openstreetmap.org https://elevation-tiles-prod.s3.amazonaws.com;
+  connect-src 'self' https://api.entur.io https://*.arcgisonline.com https://*.tile.openstreetmap.org https://elevation-tiles-prod.s3.amazonaws.com https://unpkg.com;
   base-uri 'self';
   object-src 'none';
 "/>
@@ -19,8 +21,16 @@
      static GitHub-Pages file can't set). Add it at the server/CDN layer for clickjacking cover. -->
 <title>Connection Explorer</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.css"
+      integrity="sha384-Q5Blg3vUVAlUKqIPJYz7wGnz40Vwrx4pVuFVicI73+8c/26Zr5hhckfuIiIUflLE" crossorigin="anonymous"/>
+<!-- MapLibre GL 6.x is ESM-only (the UMD global was dropped), so it is imported as a module
+     from the main script below. SRI can't be attached to an `import`, so the module graph is
+     integrity-pinned here via modulepreload: the main bundle and the shared chunk it imports.
+     6.4.1 is the first release fixing the AttributionControl XSS (CVE-2026-85061 / GHSA-jrc7-96c5-q579). -->
+<link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.mjs"
+      integrity="sha384-ZEPnMfN8RZc+VuGJWD9jEpjkXJqDSwBZ66IXRH7T0Be/2XwFByZDpJIREH3zPqAB" crossorigin="anonymous"/>
+<link rel="modulepreload" href="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl-shared.mjs"
+      integrity="sha384-XWb7kIXVtN5GCUk0iH+L55pX/uMSUVIAbVx9/RfelwfMQzTtw/UQDETr+882qhsN" crossorigin="anonymous"/>
 <style>
 /* ============================================================================
    Connection Explorer — v1.x
@@ -175,11 +185,17 @@ button{ font-family:inherit; }
 /* map */
 .map-wrap{ flex:1; position:relative; min-width:0; }
 #map{ position:absolute; inset:0; background:var(--c-map); }
-.leaflet-container{ background:var(--c-map); font-family:var(--ui); }
-/* map-dot tooltip — themed card matching the panels */
-.leaflet-tooltip.mtip{ background:var(--c-card); color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:9px; box-shadow:var(--shadow-lg); padding:7px 9px; }
-.leaflet-tooltip.mtip.leaflet-tooltip-top::before{ border-top-color:var(--c-card); }
-.leaflet-tooltip.mtip.leaflet-tooltip-bottom::before{ border-bottom-color:var(--c-card); }
+.maplibregl-map{ font-family:var(--ui); }
+.maplibregl-ctrl-attrib.maplibregl-compact{ background:var(--c-card); color:var(--c-muted); }
+.maplibregl-ctrl-attrib a{ color:var(--c-muted); }
+/* 3D terrain toggle (a MapLibre control under the zoom buttons) — coral when active */
+.ce-3d-ctrl button{ font-weight:800; font-size:12px; letter-spacing:.3px; }
+.ce-3d-ctrl button[aria-pressed="true"]{ background:var(--c-accent); color:#fff; }
+.ce-3d-ctrl button[aria-pressed="true"]:hover{ background:var(--c-accent); }
+/* map-dot tooltip — themed card (MapLibre popup), matching the panels */
+.maplibregl-popup.mtip{ max-width:260px!important; }
+.maplibregl-popup.mtip .maplibregl-popup-content{ background:var(--c-card); color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:9px; box-shadow:var(--shadow-lg); padding:7px 9px; }
+.maplibregl-popup.mtip .maplibregl-popup-tip{ display:none; }
 .mtip-head{ display:flex; align-items:flex-start; gap:7px; }
 .mtip-head .linetag,.mtip-head .mtip-dest{ margin-top:1px; }  /* nudge onto the aimed-time line, like the panels */
 .mtip-dest{ font-size:12.5px; color:var(--c-text); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -226,6 +242,29 @@ button{ font-family:inherit; }
 .verdict.ok{ background:var(--c-ok-soft); color:var(--c-ok);} .verdict.warn{ background:var(--c-warn-soft); color:var(--c-warn);} .verdict.miss{ background:var(--c-card-2); color:var(--c-muted);} .verdict.flag{ background:var(--c-flag-soft); color:var(--c-flag);}
 .verdict.guar{ background:var(--c-guar-soft); color:var(--c-guar);} .verdict.checking{ background:var(--c-card-2); color:var(--c-muted); font-weight:500;}
 
+/* journey-planner handoff (green connections): a split primary button → origin/destination pickers → go */
+.handoff{ position:relative; }
+.ho-split{ display:flex; gap:1px; }
+.ho-main{ flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:11px 12px; background:var(--c-accent); color:var(--c-accent-ink); border:none; border-radius:9px 0 0 9px; font-size:13px; font-weight:700; cursor:pointer; }
+.ho-caret{ width:40px; flex:none; background:var(--c-accent); color:var(--c-accent-ink); border:none; border-left:1px solid rgba(255,255,255,.3); border-radius:0 9px 9px 0; font-size:12px; cursor:pointer; }
+.ho-main:hover,.ho-caret:hover,.ho-go:hover{ filter:brightness(1.06); }
+.ho-arr{ font-size:12px; opacity:.9; }
+.ho-menu{ position:absolute; left:0; right:0; bottom:calc(100% + 4px); z-index:20; background:var(--c-card); border:1px solid var(--c-border-strong); border-radius:9px; box-shadow:var(--shadow-lg); overflow:hidden; display:flex; flex-direction:column; }
+.ho-menu button{ text-align:left; background:none; border:none; padding:10px 12px; font-size:12.5px; color:var(--c-text); cursor:pointer; }
+.ho-menu button:hover{ background:var(--c-card-2); }
+.ho-hint{ color:var(--c-faint); font-size:11px; }
+.ho-pick{ display:flex; flex-direction:column; gap:8px; padding:10px; background:var(--c-card-2); border:1px solid var(--c-border); border-radius:9px; }
+.ho-tgt{ font-size:11.5px; color:var(--c-muted); display:flex; align-items:center; gap:6px; }
+.ho-tgt b{ color:var(--c-text); }
+.ho-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--c-muted); }
+.ho-row>span{ width:38px; flex:none; font-weight:600; }
+.ho-row select{ flex:1; min-width:0; padding:7px 8px; border:1px solid var(--c-border-strong); border-radius:7px; background:var(--c-card); color:var(--c-text); font-size:12px; font-family:inherit; }
+.ho-go{ margin-top:2px; display:flex; align-items:center; justify-content:center; gap:7px; padding:10px; background:var(--c-accent); color:var(--c-accent-ink); border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+.ho-busy{ font-size:11.5px; color:var(--c-muted); text-align:center; padding:9px; }
+.ho-err{ color:var(--c-bad); }
+.linkish{ background:none; border:none; padding:0; color:var(--c-accent-text); font:inherit; font-size:11px; text-decoration:underline; cursor:pointer; margin-left:auto; }
+.ho-main:focus-visible,.ho-caret:focus-visible,.ho-go:focus-visible,.ho-menu button:focus-visible,.ho-row select:focus-visible,.linkish:focus-visible{ outline:2px solid var(--c-text); outline-offset:2px; }
+
 /* overlay spinner */
 .busy{ position:absolute; inset:0; background:var(--c-scrim); display:none; align-items:center; justify-content:center; z-index:700; }
 .busy.on{ display:flex; }
@@ -250,7 +289,7 @@ button{ font-family:inherit; }
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.1</span></div>
+    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.2</span></div>
     <!-- Target: which stop, and at what moment — one group, matching font, no labels. -->
     <div class="target">
       <div class="stopbox">
@@ -307,9 +346,11 @@ button{ font-family:inherit; }
   </main>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
-<script>
+<!-- Main app as an ES module so it can `import` MapLibre 6.x (ESM-only). The namespace import
+     mirrors the old `maplibregl` UMD global, so the rest of the code is unchanged. The bytes are
+     the ones integrity-pinned by the modulepreload links in <head>. -->
+<script type="module">
+import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.mjs';
 (function(){
 'use strict';
 
@@ -340,6 +381,11 @@ const CONFIG = {
   // boardCap/partnerCap = numberOfDepartures ceilings; walkFailWarn = show a "verdicts
   // may be approximate" banner when this fraction of walk queries fail (e.g. rate-limited).
   limits:   { nearbyStops:40, walkQueries:120, renderCap:200, walkConcurrency:6, boardCap:250, partnerCap:150, walkFailWarn:0.3 },
+  // Journey-planner handoff: this tool only checks the interchange time, so for a
+  // makeable (green) connection it hands the user to a real planner with a from→to
+  // query. enturBase = public planner (universal link: opens the app if installed);
+  // otpBase = OTP debug UI (advanced). Both accept stop/quay ids + a departure time.
+  handoff:  { enturBase:'https://entur.no/travel-result', otpBase:'https://otpdebug.entur.org/' },
 };
 
 /* Entur brand palette (linje.entur.no). Semantic green/amber are harmonised here
@@ -518,37 +564,72 @@ const Q_WALK =
  'query($from:String!,$to:String!){ trip(from:{place:$from},to:{place:$to},modes:{directMode:foot,transportModes:[]},'+
  'numTripPatterns:1,walkSpeed:'+CONFIG.defaults.walkSpeed+'){ tripPatterns{ duration streetDistance legs{ pointsOnLink{ points } } } } }';
 
-/* ============================ map ========================================= */
+/* ============================ map (MapLibre GL) =========================== */
 const ESRI='https://services.arcgisonline.com/ArcGIS/rest/services/';
-// Each background: light[] (+ optional dark[]) tile URLs (base first, optional label overlay),
-// its attribution, and any per-layer options. Esri templates are {z}/{y}/{x}; OSM is {z}/{x}/{y}.
+const DEM_TILES='https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png';  // Terrarium DEM (AWS Open Data, no key)
+const OSM_TILES=['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png','https://b.tile.openstreetmap.org/{z}/{x}/{y}.png','https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'];
+const IMAGERY=[ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+const IMG_REF=[ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'];
+// Attribution strings taken verbatim from each provider (Esri MapServer copyrightText / OSM / AWS
+// Terrain Tiles). Each raster source carries its own; MapLibre's AttributionControl dedupes and joins.
+const A_ESRI='Esri, HERE, Garmin, © OpenStreetMap contributors, and the GIS user community';
+const A_IMG ='Esri, Vantor, Earthstar Geographics, and the GIS User Community';
+const A_OSM ='© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+const A_DEM ='Elevation: Mapzen Terrain Tiles via AWS Open Data (sources incl. USGS, NASA SRTM, NOAA)';
+// Each background = ordered raster layers {tiles, attr} (base first, optional label overlay), drawn
+// UNDER the walk lines. Esri templates are {z}/{y}/{x}; OSM is {z}/{x}/{y}. 3D (Terrarium terrain +
+// hillshade + pitch) is a separate TOGGLE applied on top of whichever background is selected.
 const BG={
-  'Grey': {
-    light:[ESRI+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', ESRI+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
-    dark: [ESRI+'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',  ESRI+'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
-    attr:'Esri, HERE, Garmin, OpenStreetMap contributors', maxNativeZoom:16 },
-  'Standard': {  // regular OpenStreetMap
-    light:['https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-    attr:'© OpenStreetMap contributors', subdomains:'abc', maxNativeZoom:19 },
-  'Aerial': {    // Esri World Imagery + a place-name/boundary reference overlay for legibility
-    light:[ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
-    attr:'Esri, Maxar, Earthstar Geographics', maxNativeZoom:18 },
+  'Grey':     { layers:[{tiles:[ESRI+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'],attr:A_ESRI},{tiles:[ESRI+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],attr:A_ESRI}],
+                dark:  [{tiles:[ESRI+'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'],attr:A_ESRI}, {tiles:[ESRI+'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],attr:A_ESRI}],
+                maxzoom:16 },
+  'Standard': { layers:[{tiles:OSM_TILES,attr:A_OSM}], maxzoom:19 },
+  'Aerial':   { layers:[{tiles:IMAGERY,attr:A_IMG},{tiles:IMG_REF,attr:A_ESRI}], maxzoom:18 },
 };
+const WALK_SRC='ce-walks';
 function createMap(){
-  const map=L.map('map',{ zoomControl:true }).setView([59.91,10.75],13);
-  let layer=null, curDark=false;
+  const map=new maplibregl.Map({ container:'map', style:{version:8, sources:{}, layers:[]},
+    center:[10.75,59.91], zoom:12, attributionControl:false, maxPitch:75 });
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-left');
+  map.addControl(new maplibregl.AttributionControl({compact:true}));
+  let curDark=false, terrain3d=localStorage.getItem('ie-3d')==='1';
   let bgName=BG[localStorage.getItem('ie-mapbg')]?localStorage.getItem('ie-mapbg'):'Grey';
-  function draw(){ if(layer) map.removeLayer(layer); layer=L.layerGroup();
-    const bg=BG[bgName]||BG.Grey; const urls=(curDark&&bg.dark)?bg.dark:bg.light;  // no dark tiles → use light (aerial/OSM)
-    urls.forEach(function(u,i){ L.tileLayer(u,{ maxNativeZoom:bg.maxNativeZoom||16, maxZoom:19, subdomains:bg.subdomains||'abc', attribution:i===0?bg.attr:undefined }).addTo(layer); });
-    layer.addTo(map); }
-  // Leaflet needs the container's final size; it is 0×0 until layout settles.
-  setTimeout(function(){ map.invalidateSize(); },0);
-  window.addEventListener('resize',function(){ map.invalidateSize(); });
+  // Basemaps/hillshade sit under the walk lines — insert before the first overlay layer.
+  function firstOverlay(){ return map.getLayer('ce-walk-flag')?'ce-walk-flag':undefined; }
+  // 3D terrain (Terrarium DEM + hillshade + pitch), applied ON TOP of any background.
+  function addTerrain(){
+    if(!map.getSource('ce-dem')) map.addSource('ce-dem',{ type:'raster-dem', tiles:[DEM_TILES], tileSize:256, encoding:'terrarium', maxzoom:14, attribution:A_DEM });
+    if(!map.getLayer('ce-hill')) map.addLayer({ id:'ce-hill', type:'hillshade', source:'ce-dem', paint:{ 'hillshade-exaggeration':0.5 } }, firstOverlay());
+    map.setTerrain({ source:'ce-dem', exaggeration:1.3 });
+    if(map.getPitch()<20) map.easeTo({ pitch:62, duration:700 }); }
+  function removeTerrain(){ try{ map.setTerrain(null); }catch(_){ }
+    if(map.getLayer('ce-hill')) map.removeLayer('ce-hill'); if(map.getSource('ce-dem')) map.removeSource('ce-dem');
+    if(map.getPitch()>0) map.easeTo({ pitch:0, bearing:0, duration:400 }); }
+  function clearBg(){ ['ce-hill','ce-bg0','ce-bg1'].forEach(function(id){ if(map.getLayer(id)) map.removeLayer(id); });
+    ['ce-bg0','ce-bg1'].forEach(function(id){ if(map.getSource(id)) map.removeSource(id); }); }
+  function applyBg(){ clearBg();
+    const bg=BG[bgName]||BG.Grey; const layers=(curDark&&bg.dark)?bg.dark:bg.layers;
+    layers.forEach(function(ly,i){ const sid='ce-bg'+i;
+      map.addSource(sid,{ type:'raster', tiles:ly.tiles, tileSize:256, maxzoom:bg.maxzoom||19, attribution:ly.attr||'' });
+      map.addLayer({ id:sid, type:'raster', source:sid }, firstOverlay()); });
+    if(terrain3d) addTerrain();  // re-assert terrain (clearBg dropped its hillshade layer)
+  }
+  function set3d(on){ terrain3d=on; localStorage.setItem('ie-3d',on?'1':'0');
+    if(map.__ready){ if(on) addTerrain(); else removeTerrain(); } }
+  // A "3D" toggle control, stacked under the zoom/compass (top-left).
+  const ctl3d={ onAdd:function(){ const c=document.createElement('div'); c.className='maplibregl-ctrl maplibregl-ctrl-group ce-3d-ctrl';
+      const b=document.createElement('button'); b.type='button'; b.textContent='3D'; b.title='Toggle 3D terrain';
+      b.setAttribute('aria-label','Toggle 3D terrain'); b.setAttribute('aria-pressed',terrain3d?'true':'false');
+      b.addEventListener('click',function(){ set3d(!terrain3d); b.setAttribute('aria-pressed',terrain3d?'true':'false'); });
+      c.appendChild(b); this._c=c; return c; }, onRemove:function(){ if(this._c) this._c.remove(); } };
+  map.addControl(ctl3d,'top-left');
+  map.on('load',function(){ map.__ready=true; applyBg(); if(map.__onReady){ map.__onReady(); map.__onReady=null; } });
+  window.addEventListener('resize',function(){ map.resize(); });
   return { map:map,
-    setVariant:function(d){ curDark=d; draw(); },
-    setBg:function(name){ if(BG[name]){ bgName=name; localStorage.setItem('ie-mapbg',name); draw(); } },
-    getBg:function(){ return bgName; } };
+    setVariant:function(d){ curDark=d; if(map.__ready) applyBg(); },
+    setBg:function(name){ if(BG[name]){ bgName=name; localStorage.setItem('ie-mapbg',name); if(map.__ready) applyBg(); } },
+    getBg:function(){ return bgName; },
+    whenReady:function(fn){ if(map.__ready) fn(); else map.__onReady=fn; } };
 }
 
 /* ============================ detour curve ================================ */
@@ -644,8 +725,10 @@ function switchDir(dir){ if(dir===state.dir) return; state.dir=dir; localStorage
   state.selAnchor=null; state.interchanges=[]; state.selXf=null; hideDetail();
   $('xfScroll').innerHTML='<div class="hint">'+t('hint.pickdep')+'</div>'; $('xfCount').textContent='';
   if(state.stop) loadStop(state.stop); }
-// To must not precede From — clamp the span whenever an input changes.
-function validateSpan(){ if($('qTo').value && $('qFrom').value && $('qTo').value < $('qFrom').value) $('qTo').value=$('qFrom').value; }
+// To must not precede From. Returns true if it had to clamp. Called on BLUR only (not on every
+// keystroke) — a <input type=time> fires 'change' per typed segment, so clamping there snapped
+// the field toward From mid-typing ("17:30" passes through "01:xx" first).
+function validateSpan(){ if($('qTo').value && $('qFrom').value && $('qTo').value < $('qFrom').value){ $('qTo').value=$('qFrom').value; return true; } return false; }
 // Push the To time later (clamped to end-of-day) — "look a bit further ahead".
 function bumpTo(mins){ const parts=($('qTo').value||'00:00').split(':'); let tot=Math.min(23*60+59,(+parts[0])*60+(+parts[1])+mins);
   $('qTo').value=pad(Math.floor(tot/60))+':'+pad(tot%60); if(state.stop) loadStop(state.stop); }
@@ -962,6 +1045,94 @@ async function resolveGuaranteed(x){
     x.guaranteed=found;
   }catch(e){ x.guaranteed = isAbort(e)?undefined:null; }
 }
+/* ---- journey-planner handoff (green connections only) ------------------
+   The tool checks the interchange; the real planner does the planning. For a
+   makeable connection we hand the user to entur.no or otpdebug with a from→to
+   query: origin = a stop on the ARRIVING line before the interchange,
+   destination = a stop on the DEPARTING line after it. The departure time is
+   the origin's own timetable departure, so the planner reproduces this run.
+   One on-demand query (both runs' calls), fired only if the user hands off. */
+function hoState(x){ if(!x._ho) x._ho={ stage:'trigger', target:'entur', menu:false, route:null, error:null, from:0, to:0, loading:false }; return x._ho; }
+async function loadHandoffRoute(x){
+  const ho=hoState(x); if(ho.route||ho.loading) return;
+  const partnerIsDep=(DIR().partnerTime==='dep'), anchor=state.selAnchor;
+  const arrivalSvc=partnerIsDep?anchor:x.a, departSvc=partnerIsDep?x.a:anchor;
+  const date=(x.arrTime||'').slice(0,10);
+  if(!arrivalSvc.sjId||!departSvc.sjId||!date){ ho.error='missing'; renderHandoff(x); return; }
+  ho.loading=true;
+  try{
+    // arriving run (a) → origin candidates with their departure times; departing run (b) → destinations.
+    const q='query($a:String!,$b:String!,$date:Date!){'
+      +' a:serviceJourney(id:$a){ estimatedCalls(date:$date){ quay{id stopPlace{id name}} aimedDepartureTime } }'
+      +' b:serviceJourney(id:$b){ estimatedCalls(date:$date){ quay{id stopPlace{id name}} } } }';
+    const sc=await jp(q,{ a:arrivalSvc.sjId, b:departSvc.sjId, date:date });
+    const aC=(sc.a&&sc.a.estimatedCalls)||[], dC=(sc.b&&sc.b.estimatedCalls)||[];
+    const idOf=function(c){ return (c.quay&&c.quay.stopPlace&&c.quay.stopPlace.id)||(c.quay&&c.quay.id)||null; };
+    const nmOf=function(c){ return (c.quay&&c.quay.stopPlace&&c.quay.stopPlace.name)||''; };
+    let ai=aC.findIndex(function(c){return c.quay&&c.quay.id===arrivalSvc.quayId;}); if(ai<0) ai=aC.length-1;
+    let di=dC.findIndex(function(c){return c.quay&&c.quay.id===departSvc.quayId;}); if(di<0) di=0;
+    let origins=aC.slice(0,ai).map(function(c){ return { id:idOf(c), name:nmOf(c), time:c.aimedDepartureTime }; }).filter(function(o){return o.id;});
+    let dests  =dC.slice(di+1).map(function(c){ return { id:idOf(c), name:nmOf(c) }; }).filter(function(o){return o.id;});
+    // Fallbacks: a run that starts/ends at the interchange leaves one side empty — use the interchange stop itself.
+    if(!origins.length) origins=[{ id:arrivalSvc.stopId||state.stop.id, name:arrivalSvc.stopName||state.stop.name, time:x.arrTime }];
+    if(!dests.length)   dests  =[{ id:departSvc.stopId||state.stop.id, name:departSvc.stopName||state.stop.name }];
+    ho.route={ origins:origins, dests:dests }; ho.from=0; ho.to=dests.length-1;
+  }catch(e){ ho.error='fetch'; }
+  ho.loading=false; renderHandoff(x);
+}
+function planUrl(target, o, d){
+  if(target==='otp'){  // OTP debug: double-encoded `variables` JSON (ids keep literal colons inside the JSON)
+    const v=JSON.stringify({ from:{place:o.id}, to:{place:d.id}, dateTime:o.time||undefined, arriveBy:false });
+    return CONFIG.handoff.otpBase+'?variables='+encodeURIComponent(encodeURIComponent(v));
+  }
+  // entur.no: query params (it re-encodes the colons itself); carry our own walk assumptions so the planner matches.
+  const p=new URLSearchParams({ startId:o.id, stopId:d.id, timepickerMode:'departAfter',
+    walkSpeed:String(CONFIG.defaults.walkSpeed), minimumTransferTime:String(CONFIG.connect.transferSlack) });
+  if(o.name) p.set('startLabel', o.name); if(d.name) p.set('stopLabel', d.name);
+  if(o.time) p.set('date', String(new Date(o.time).getTime()));
+  return CONFIG.handoff.enturBase+'?'+p.toString();
+}
+const TGT_NAME={ entur:'Entur.no', otp:'OTP Debug' };
+function renderHandoff(x){
+  const host=$('handoff'); if(!host) return; const ho=hoState(x);
+  let h='';
+  if(ho.stage==='trigger'){
+    h='<div class="ho-split">'
+      +'<button type="button" class="ho-main" data-act="open" data-t="entur">Open in Entur.no<span class="ho-arr">↗</span></button>'
+      +'<button type="button" class="ho-caret" data-act="menu" aria-haspopup="true" aria-expanded="'+(ho.menu?'true':'false')+'" aria-label="More planner options">▾</button>'
+      +'</div>'
+      +(ho.menu?'<div class="ho-menu" role="menu">'
+        +'<button type="button" role="menuitem" data-act="open" data-t="entur">Entur.no <span class="ho-hint">— public planner</span></button>'
+        +'<button type="button" role="menuitem" data-act="open" data-t="otp">OTP Debug <span class="ho-hint">— advanced</span></button>'
+        +'</div>':'');
+  } else if(ho.error){
+    h='<div class="ho-busy ho-err">Couldn’t load this journey’s stops. <button type="button" class="linkish" data-act="reset">Back</button></div>';
+  } else if(!ho.route){
+    h='<div class="ho-busy">Loading the journey’s stops…</div>';
+  } else {
+    const r=ho.route, nm=TGT_NAME[ho.target];
+    const opt=function(list,sel,withTime){ return list.map(function(it,i){
+      const lbl=(it.name||it.id)+(withTime&&it.time?' · '+clock(it.time):'');
+      return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+esc(lbl)+'</option>'; }).join(''); };
+    h='<div class="ho-pick">'
+      +'<div class="ho-tgt">Open in <b>'+nm+'</b><button type="button" class="linkish" data-act="reset">change</button></div>'
+      +'<label class="ho-row"><span>From</span><select class="ho-from">'+opt(r.origins,ho.from,true)+'</select></label>'
+      +'<label class="ho-row"><span>To</span><select class="ho-to">'+opt(r.dests,ho.to,false)+'</select></label>'
+      +'<button type="button" class="ho-go" data-act="go">Open in '+nm+'<span class="ho-arr">↗</span></button>'
+      +'</div>';
+  }
+  host.innerHTML=h;
+  host.querySelectorAll('[data-act]').forEach(function(btn){ btn.addEventListener('click',function(){
+    const act=btn.dataset.act;
+    if(act==='menu'){ ho.menu=!ho.menu; renderHandoff(x); }
+    else if(act==='open'){ ho.menu=false; ho.target=btn.dataset.t||'entur'; ho.stage='pick'; ho.error=null; renderHandoff(x); loadHandoffRoute(x); }
+    else if(act==='reset'){ ho.stage='trigger'; ho.menu=false; ho.error=null; renderHandoff(x); }
+    else if(act==='go'){ const r=ho.route; if(!r) return; const o=r.origins[ho.from], d=r.dests[ho.to];
+      if(o&&d) window.open(planUrl(ho.target,o,d),'_blank','noopener'); }
+  }); });
+  const fs=host.querySelector('.ho-from'); if(fs) fs.addEventListener('change',function(){ ho.from=+fs.value; });
+  const ts=host.querySelector('.ho-to'); if(ts) ts.addEventListener('change',function(){ ho.to=+ts.value; });
+}
 function renderDetail(x){
   const partnerIsDep=(DIR().partnerTime==='dep'); const anchor=state.selAnchor;
   const arrivalSvc = partnerIsDep ? anchor : x.a;   // the service you get OFF
@@ -1011,8 +1182,11 @@ function renderDetail(x){
       +'<div class="bufbox secondary"><div class="k">Live buffer</div><div class="v buf '+(x.expBuf==null?'neg':x.expBuf<0?'neg':x.expBuf<CONFIG.connect.transferSlack?'tt':'pos')+'">'+(x.expBuf==null?'–':signed(x.expBuf))+'</div></div></div>'
     +'<div class="tmin">Transfer minimum <b>'+mmss(CONFIG.connect.transferSlack)+'</b> — a connection needs at least this much spare on top of the walk (≈1 min to alight + 1 min to board).</div>'
     +'<div class="verdict '+vcls+'">'+vtext+'</div>'
+    // Handoff only for a genuinely makeable (green) connection — the planner can route it.
+    +(x.cls==='ok'?'<div id="handoff" class="handoff"></div>':'')
     +'</div>';
   $('detailX').addEventListener('click',hideDetail);
+  if(x.cls==='ok') renderHandoff(x);
   el.onkeydown=function(e){ if(e.key==='Escape'){ e.preventDefault(); hideDetail(); } };
   if(wasHidden) el.focus();  // move focus in on open, but not on in-place re-renders (e.g. probe result)
 }
@@ -1022,52 +1196,80 @@ function hideDetail(){ const card=document.querySelector('.xf[aria-selected="tru
   if(card) card.focus();  // return focus to the card that opened the panel
 }
 
-/* ============================ map drawing ================================= */
-let mapLayer=null;
-function pinIcon(mode,kind){ const cls='pin-ic '+(kind||''); const size=kind==='anchor'?36:30; const isz=Math.round(size*0.55);
-  // The svg needs an explicit viewBox + size, or <use> of a 24-unit symbol renders tiny.
-  return L.divIcon({ className:'', iconSize:[size,size], iconAnchor:[size/2,size/2],
-    html:'<div class="'+cls+'" style="width:'+size+'px;height:'+size+'px"><svg width="'+isz+'" height="'+isz+'" viewBox="0 0 24 24"><use href="#ic-'+modeIcon(mode)+'"/></svg></div>' }); }
-function focusMap(coords){ const pts=coords.filter(Boolean); if(!pts.length)return;
-  if(pts.length===1) mapApi.map.setView(pts[0],15); else mapApi.map.fitBounds(pts,{padding:[50,50]}); }
-function mapApi_pan(c){ mapApi.map.panTo(c,{animate:true}); }
-function walkColor(){ return getComputedStyle(document.documentElement).getPropertyValue('--c-walk').trim(); }
-// Map-dot tooltip: the same line presentation as the panels (mode tag + destination + time),
+/* ============================ map drawing (MapLibre) ===================== */
+function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+// A quay pin as a DOM element (used as a MapLibre marker). Explicit viewBox+size or the <use> renders tiny.
+function pinEl(mode,kind){ const size=kind==='anchor'?36:30, isz=Math.round(size*0.55);
+  const el=document.createElement('div'); el.className='pin-ic '+(kind||''); el.style.width=size+'px'; el.style.height=size+'px';
+  el.innerHTML='<svg width="'+isz+'" height="'+isz+'" viewBox="0 0 24 24"><use href="#ic-'+modeIcon(mode)+'"/></svg>'; return el; }
+function focusMap(coords){ const pts=coords.filter(Boolean); if(!pts.length)return; const m=mapApi.map;
+  if(pts.length===1) m.easeTo({ center:[pts[0][1],pts[0][0]], zoom:15, duration:500 });
+  else { const b=new maplibregl.LngLatBounds(); pts.forEach(function(p){ b.extend([p[1],p[0]]); }); m.fitBounds(b,{ padding:50, duration:500 }); } }
+function mapApi_pan(c){ mapApi.map.easeTo({ center:[c[1],c[0]], duration:500 }); }
+// Map-dot tooltip: the same line presentation as the panels (time first · mode tag · destination),
 // plus the stop name and quay. Nothing more — no flags or verdicts on the dots. Data is esc()'d;
 // the tag/structure markup is authored (same contract as the render functions).
 function markerTip(svc, stopName, aimIso, liveIso){
-  // Same grammar as the panels: time first (big, live under it) · mode tag · destination.
   const head=timeBlock(aimIso,liveIso,svc.rt)+tagHtml(svc.mode,svc.lineNo)
     +(svc.dest?'<span class="mtip-dest">'+esc(svc.dest)+'</span>':'');
   const sub=[]; if(stopName) sub.push(esc(stopName)); if(svc.quayPub) sub.push('Quay '+esc(svc.quayPub));
   return '<div class="mtip-head">'+head+'</div>'+(sub.length?'<div class="mtip-sub">'+sub.join(' · ')+'</div>':''); }
+let markers=[], hoverPop=null;
+function clearMarkers(){ markers.forEach(function(m){ m.remove(); }); markers=[]; if(hoverPop){ hoverPop.remove(); hoverPop=null; } }
+function bindHover(marker, el, html){
+  el.addEventListener('mouseenter',function(){ if(hoverPop) hoverPop.remove();
+    hoverPop=new maplibregl.Popup({ closeButton:false, closeOnClick:false, offset:15, className:'mtip' })
+      .setLngLat(marker.getLngLat()).setHTML(html).addTo(mapApi.map); });
+  el.addEventListener('mouseleave',function(){ if(hoverPop){ hoverPop.remove(); hoverPop=null; } }); }
+// The walk lines are one GeoJSON source; three line layers filter by `kind` (solid street path /
+// dashed crow-flies / flagged grey underlay). Colour/width/opacity are data-driven on sel/hasSel.
+function ensureWalkLayers(){ const m=mapApi.map; if(m.getSource(WALK_SRC)) return;
+  m.addSource(WALK_SRC,{ type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  m.addLayer({ id:'ce-walk-flag', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'flag'],
+    paint:{ 'line-color':cssVar('--c-faint'), 'line-width':1.4, 'line-opacity':0.8, 'line-dasharray':[2,6] } });
+  m.addLayer({ id:'ce-walk-dash', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'dash'],
+    paint:{ 'line-color':cssVar('--c-walk'), 'line-width':2.6, 'line-opacity':0.62, 'line-dasharray':[2,6] } });
+  m.addLayer({ id:'ce-walk-solid', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'solid'],
+    layout:{ 'line-cap':'round', 'line-join':'round' }, paint:{ 'line-color':cssVar('--c-walk'), 'line-width':3.2, 'line-opacity':0.62 } }); }
 function drawMap(){
-  if(mapLayer) mapApi.map.removeLayer(mapLayer); mapLayer=L.layerGroup().addTo(mapApi.map);
+  const m=mapApi.map; if(!m.__ready){ mapApi.whenReady(drawMap); return; }
+  ensureWalkLayers(); clearMarkers();
   const anchor=state.selAnchor;
-  if(!anchor){ if(state.stop&&state.stop.coord){ L.marker(state.stop.coord,{icon:pinIcon('other','anchor')}).addTo(mapLayer); } $('legend').style.display='none'; return; }
+  if(!anchor){ m.getSource(WALK_SRC).setData({ type:'FeatureCollection', features:[] });
+    if(state.stop&&state.stop.coord){ const el=pinEl('other','anchor');
+      markers.push(new maplibregl.Marker({ element:el }).setLngLat([state.stop.coord[1],state.stop.coord[0]]).addTo(m)); }
+    $('legend').style.display='none'; return; }
   $('legend').style.display='';
   const aQuay=(state.stop.quays||[]).find(function(q){return q.id===anchor.quayId;});
   const dc = aQuay?[aQuay.latitude,aQuay.longitude]:state.stop.coord;
-  const vis=visibleXf(); const col=walkColor();
-  const acc=getComputedStyle(document.documentElement).getPropertyValue('--c-accent').trim();  // Coral #ff5959
-  const bounds=[dc];
-  vis.forEach(function(x){ if(!x.a.lat)return; const ac=[x.a.lat,x.a.lon]; bounds.push(ac);
-    const isSel=state.selXf===x, hasSel=!!state.selXf;
-    // Selected walk stands out by COLOUR (Coral, matching the selected quay pins), so it
-    // need not be much thicker; once something is selected the other (blue) links recede.
-    const lc = isSel?acc:col;
-    const wReal = isSel?4.5:(hasSel?2:3.2), wDash = isSel?4:(hasSel?1.6:2.6), op = isSel?1:(hasSel?0.32:0.62);
-    if(x.pts&&x.pts.length>1){ L.polyline(x.pts,{color:lc,weight:wReal,opacity:op}).addTo(mapLayer); }
-    else { L.polyline([ac,dc],{color:lc,weight:wDash,opacity:op,dashArray:'2 6'}).addTo(mapLayer); }
-    if(x.flagged){ L.polyline([ac,dc],{color:getComputedStyle(document.documentElement).getPropertyValue('--c-faint').trim(),weight:1.4,opacity:0.8,dashArray:'2 6'}).addTo(mapLayer); }
-    const m=L.marker(ac,{icon:pinIcon(x.a.mode,isSel?'sel':'')}).addTo(mapLayer)
-      .bindTooltip(markerTip(x.a, x.a.stopName||state.stop.name, partnerTimeIso(x.a), partnerExpIso(x.a)),{direction:'top',offset:[0,-10],className:'mtip'});
-    m.on('click',function(){ selectXf(x); });
+  const vis=visibleXf(); const acc=cssVar('--c-accent'), col=cssVar('--c-walk'), faint=cssVar('--c-faint');
+  const dcLL=[dc[1],dc[0]]; const bounds=[dcLL]; const feats=[];
+  vis.forEach(function(x){ if(!x.a.lat)return; const ac=[x.a.lat,x.a.lon], acLL=[x.a.lon,x.a.lat]; bounds.push(acLL);
+    const isSel=state.selXf===x, hasSel=!!state.selXf, hasPath=x.pts&&x.pts.length>1;
+    const coords=(hasPath?x.pts:[ac,dc]).map(function(p){ return [p[1],p[0]]; });  // [lat,lng] → [lng,lat]
+    feats.push({ type:'Feature', properties:{ kind:hasPath?'solid':'dash', sel:isSel, hasSel:hasSel }, geometry:{ type:'LineString', coordinates:coords } });
+    if(x.flagged) feats.push({ type:'Feature', properties:{ kind:'flag' }, geometry:{ type:'LineString', coordinates:[acLL,dcLL] } });
+    // pin (Coral outline when selected, matching the selected walk link)
+    const el=pinEl(x.a.mode, isSel?'sel':''); el.style.cursor='pointer';
+    const mk=new maplibregl.Marker({ element:el }).setLngLat(acLL).addTo(m); markers.push(mk);
+    el.addEventListener('click',function(){ selectXf(x); });
+    bindHover(mk, el, markerTip(x.a, x.a.stopName||state.stop.name, partnerTimeIso(x.a), partnerExpIso(x.a)));
   });
-  L.marker(dc,{icon:pinIcon(anchor.mode,'anchor')}).addTo(mapLayer)
-    .bindTooltip(markerTip(anchor, state.stop.name, anchorTimeIso(anchor), anchorExpIso(anchor)),{direction:'top',offset:[0,-12],className:'mtip'});
-  // Fit the view only when the anchor changed — not on every chip toggle (that re-zoomed jarringly).
-  if(bounds.length>1 && !state.selXf && state._fitAnchor!==anchor){ mapApi.map.fitBounds(bounds,{padding:[60,60],maxZoom:16}); state._fitAnchor=anchor; }
+  m.getSource(WALK_SRC).setData({ type:'FeatureCollection', features:feats });
+  // selected walk stands out by COLOUR (Coral), others recede; re-applied each draw (theme + selection).
+  m.setPaintProperty('ce-walk-solid','line-color',['case',['get','sel'],acc,col]);
+  m.setPaintProperty('ce-walk-solid','line-width',['case',['get','sel'],4.5,['get','hasSel'],2,3.2]);
+  m.setPaintProperty('ce-walk-solid','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.32,0.62]);
+  m.setPaintProperty('ce-walk-dash','line-color',['case',['get','sel'],acc,col]);
+  m.setPaintProperty('ce-walk-dash','line-width',['case',['get','sel'],4,['get','hasSel'],1.6,2.6]);
+  m.setPaintProperty('ce-walk-dash','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.32,0.62]);
+  m.setPaintProperty('ce-walk-flag','line-color',faint);
+  const ael=pinEl(anchor.mode,'anchor');
+  const amk=new maplibregl.Marker({ element:ael }).setLngLat(dcLL).addTo(m); markers.push(amk);
+  bindHover(amk, ael, markerTip(anchor, state.stop.name, anchorTimeIso(anchor), anchorExpIso(anchor)));
+  // Fit only when the anchor changed — not on every chip toggle (that re-zoomed jarringly).
+  if(!state.selXf && state._fitAnchor!==anchor){ const b=new maplibregl.LngLatBounds(); bounds.forEach(function(p){ b.extend(p); });
+    if(bounds.length>1) m.fitBounds(b,{ padding:60, maxZoom:16, duration:500 }); state._fitAnchor=anchor; }
 }
 
 /* ============================ chrome ====================================== */
@@ -1100,15 +1302,20 @@ document.addEventListener('click',function(e){ if(!e.target.closest('.stopbox'))
 
 // Direction tabs (static header) — switch which end of the interchange to browse from.
 $('dirTabs').addEventListener('click',function(e){ const b=e.target.closest('button'); if(b) switchDir(b.dataset.d); });
-// The time span reloads the board (To clamped ≥ From); walk/wait only change the connection
-// search, so they re-run it for the current anchor (no board reload, keep the selection).
-['qDate','qFrom','qTo'].forEach(function(id){ $(id).addEventListener('change',function(){ validateSpan(); if(state.stop) loadStop(state.stop); }); });
+// The time span reloads the board on a DEBOUNCED change (so typing a time segment-by-segment
+// doesn't fire a reload — or a clamp — on every intermediate value); To is clamped ≥ From only
+// on blur. Walk/wait re-run just the connection search for the current anchor (no board reload).
+const reloadSpan=debounce(function(){ if(state.stop) loadStop(state.stop); },450);
+['qDate','qFrom','qTo'].forEach(function(id){ $(id).addEventListener('change',reloadSpan); });
+['qFrom','qTo'].forEach(function(id){ $(id).addEventListener('blur',function(){ if(validateSpan() && state.stop) loadStop(state.stop); }); });
 ['wWalk','wWait'].forEach(function(id){ $(id).addEventListener('change',function(){ if(state.selAnchor) selectAnchor(state.selAnchor); else if(state.stop) loadStop(state.stop); }); });
 
 // theme + lang
 (function(){ dark=localStorage.getItem('ie-theme')==='dark'; applyTheme(dark);
   $('theme').setAttribute('aria-pressed',dark?'true':'false');
-  $('theme').addEventListener('click',function(){ dark=!dark; applyTheme(dark); mapApi.setVariant(dark); localStorage.setItem('ie-theme',dark?'dark':'light'); $('theme').setAttribute('aria-pressed',dark?'true':'false'); });
+  $('theme').addEventListener('click',function(){ dark=!dark; applyTheme(dark); mapApi.setVariant(dark);
+    if(state.selAnchor) drawMap();  // re-apply the walk-line colours (JS literals, not CSS vars)
+    localStorage.setItem('ie-theme',dark?'dark':'light'); $('theme').setAttribute('aria-pressed',dark?'true':'false'); });
 })();
 $('lang').textContent=LANG.toUpperCase();
 $('lang').addEventListener('click',function(){ LANG=LANG==='en'?'no':'en'; localStorage.setItem('ie-lang',LANG); $('lang').textContent=LANG.toUpperCase(); applyI18n();
