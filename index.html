@@ -208,8 +208,9 @@ button{ font-family:inherit; }
 .map-note.hidden{ display:none; }
 .legend{ position:absolute; bottom:12px; left:10px; z-index:600; background:var(--c-card); border:1px solid var(--c-border); border-radius:9px; padding:9px 11px; font-size:11px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:5px; }
 .legend .row{ display:flex; align-items:center; gap:8px; }
-.legend .sw{ width:20px; height:0; border-top:3px solid var(--c-walk); border-radius:2px; }
-.legend .sw.cf{ border-top-style:dashed; border-color:var(--c-faint); }
+.legend .sw{ width:22px; height:0; border-top:4px solid var(--c-muted); border-radius:2px; }
+.legend .sw.ok{ border-color:var(--c-ok); } .legend .sw.warn{ border-color:var(--c-warn); } .legend .sw.miss{ border-color:var(--c-muted); }
+.legend .sw.cf{ border-top-width:3px; border-top-style:dashed; border-color:var(--c-faint); }
 .bg-ctl{ position:absolute; top:10px; right:10px; z-index:600; }
 .bg-ctl select{ background:var(--c-card); color:var(--c-text); border:1px solid var(--c-border); border-radius:7px; padding:5px 8px; font-size:12px; }
 
@@ -259,6 +260,7 @@ button{ font-family:inherit; }
 .ho-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--c-muted); }
 .ho-row>span{ width:38px; flex:none; font-weight:600; }
 .ho-row select{ flex:1; min-width:0; padding:7px 8px; border:1px solid var(--c-border-strong); border-radius:7px; background:var(--c-card); color:var(--c-text); font-size:12px; font-family:inherit; }
+.ho-row select option.ho-ix{ color:var(--c-accent-text); font-style:italic; }
 .ho-go{ margin-top:2px; display:flex; align-items:center; justify-content:center; gap:7px; padding:10px; background:var(--c-accent); color:var(--c-accent-ink); border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
 .ho-busy{ font-size:11.5px; color:var(--c-muted); text-align:center; padding:9px; }
 .ho-err{ color:var(--c-bad); }
@@ -289,7 +291,7 @@ button{ font-family:inherit; }
 
 <div class="app">
   <header class="bar">
-    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.2</span></div>
+    <div class="brand"><h1>Connection <span>Explorer</span></h1><span class="ver" id="ver">v1.2.1</span></div>
     <!-- Target: which stop, and at what moment — one group, matching font, no labels. -->
     <div class="target">
       <div class="stopbox">
@@ -337,7 +339,9 @@ button{ font-family:inherit; }
       <div class="bg-ctl"><select id="mapBg"></select></div>
       <div class="map-note hidden" id="mapNote"></div>
       <div class="legend" id="legend" style="display:none">
-        <div class="row"><span class="sw"></span> <span data-i18n="lg.walk">walk path</span></div>
+        <div class="row"><span class="sw ok"></span> <span data-i18n="lg.ok">possible</span></div>
+        <div class="row"><span class="sw warn"></span> <span data-i18n="lg.warn">missed</span></div>
+        <div class="row"><span class="sw miss"></span> <span data-i18n="lg.miss">impossible</span></div>
         <div class="row"><span class="sw cf"></span> <span data-i18n="lg.cf">crow-flies (when walk is suspicious)</span></div>
       </div>
       <aside class="detail hidden" id="detail" role="dialog" aria-label="Connection detail" tabindex="-1"></aside>
@@ -430,7 +434,7 @@ const STRINGS = {
         'c.interchanges':'Connections',
         'hint.pickstop':'Search and pick a stop place to list its services.',
         'hint.pickdep':'Pick a service to see the connections that meet it here.',
-        'lg.walk':'walk path','lg.cf':'crow-flies (when walk is suspicious)',
+        'lg.ok':'possible','lg.warn':'missed','lg.miss':'impossible','lg.cf':'crow-flies (when walk is suspicious)',
         'x.feasible':'Possible','x.tight':'Missed','x.missed':'Impossible','x.flagged':'Flagged',
         'x.mode':'Mode','x.connection':'Connection','x.none':'Nothing meets this service in the window.',
         'x.waitquay':'Wait at quay','nav.arr':'Arrivals','nav.dep':'Departures',
@@ -440,7 +444,7 @@ const STRINGS = {
         'c.interchanges':'Forbindelser',
         'hint.pickstop':'Søk og velg et stoppested for å liste tjenestene.',
         'hint.pickdep':'Velg en tjeneste for å se byttene som møter den her.',
-        'lg.walk':'gangvei','lg.cf':'luftlinje (når gangveien er mistenkelig)',
+        'lg.ok':'mulig','lg.warn':'bommet','lg.miss':'umulig','lg.cf':'luftlinje (når gangveien er mistenkelig)',
         'x.feasible':'Mulig','x.tight':'Bommet','x.missed':'Umulig','x.flagged':'Flagget',
         'x.mode':'Modus','x.connection':'Forbindelse','x.none':'Ingenting møter denne tjenesten i vinduet.',
         'x.waitquay':'Vent på plattform','nav.arr':'Ankomster','nav.dep':'Avganger',
@@ -595,7 +599,7 @@ function createMap(){
   let curDark=false, terrain3d=localStorage.getItem('ie-3d')==='1';
   let bgName=BG[localStorage.getItem('ie-mapbg')]?localStorage.getItem('ie-mapbg'):'Grey';
   // Basemaps/hillshade sit under the walk lines — insert before the first overlay layer.
-  function firstOverlay(){ return map.getLayer('ce-walk-flag')?'ce-walk-flag':undefined; }
+  function firstOverlay(){ return map.getLayer('ce-walk-casing')?'ce-walk-casing':(map.getLayer('ce-walk-flag')?'ce-walk-flag':undefined); }
   // 3D terrain (Terrarium DEM + hillshade + pitch), applied ON TOP of any background.
   function addTerrain(){
     if(!map.getSource('ce-dem')) map.addSource('ce-dem',{ type:'raster-dem', tiles:[DEM_TILES], tileSize:256, encoding:'terrarium', maxzoom:14, attribution:A_DEM });
@@ -1061,10 +1065,11 @@ async function loadHandoffRoute(x){
   if(!arrivalSvc.sjId||!departSvc.sjId||!date){ ho.error='missing'; renderHandoff(x); return; }
   ho.loading=true;
   try{
-    // arriving run (a) → origin candidates with their departure times; departing run (b) → destinations.
+    // arriving run (a) → origins with their departure times; departing run (b) → destinations
+    // with their arrival times (when the departing service reaches that downstream stop).
     const q='query($a:String!,$b:String!,$date:Date!){'
       +' a:serviceJourney(id:$a){ estimatedCalls(date:$date){ quay{id stopPlace{id name}} aimedDepartureTime } }'
-      +' b:serviceJourney(id:$b){ estimatedCalls(date:$date){ quay{id stopPlace{id name}} } } }';
+      +' b:serviceJourney(id:$b){ estimatedCalls(date:$date){ quay{id stopPlace{id name}} aimedArrivalTime aimedDepartureTime } } }';
     const sc=await jp(q,{ a:arrivalSvc.sjId, b:departSvc.sjId, date:date });
     const aC=(sc.a&&sc.a.estimatedCalls)||[], dC=(sc.b&&sc.b.estimatedCalls)||[];
     const idOf=function(c){ return (c.quay&&c.quay.stopPlace&&c.quay.stopPlace.id)||(c.quay&&c.quay.id)||null; };
@@ -1072,11 +1077,15 @@ async function loadHandoffRoute(x){
     let ai=aC.findIndex(function(c){return c.quay&&c.quay.id===arrivalSvc.quayId;}); if(ai<0) ai=aC.length-1;
     let di=dC.findIndex(function(c){return c.quay&&c.quay.id===departSvc.quayId;}); if(di<0) di=0;
     let origins=aC.slice(0,ai).map(function(c){ return { id:idOf(c), name:nmOf(c), time:c.aimedDepartureTime }; }).filter(function(o){return o.id;});
-    let dests  =dC.slice(di+1).map(function(c){ return { id:idOf(c), name:nmOf(c) }; }).filter(function(o){return o.id;});
+    let dests  =dC.slice(di+1).map(function(c){ return { id:idOf(c), name:nmOf(c), time:c.aimedArrivalTime||c.aimedDepartureTime }; }).filter(function(o){return o.id;});
     // Fallbacks: a run that starts/ends at the interchange leaves one side empty — use the interchange stop itself.
     if(!origins.length) origins=[{ id:arrivalSvc.stopId||state.stop.id, name:arrivalSvc.stopName||state.stop.name, time:x.arrTime }];
     if(!dests.length)   dests  =[{ id:departSvc.stopId||state.stop.id, name:departSvc.stopName||state.stop.name }];
-    ho.route={ origins:origins, dests:dests }; ho.from=0; ho.to=dests.length-1;
+    // The interchange stop on each line — shown as a non-selectable boundary (end of From / top of To)
+    // so it reads as "pick a stop BEFORE the change" / "…AFTER the change".
+    const ixFrom=(aC[ai]&&nmOf(aC[ai]))||arrivalSvc.stopName||state.stop.name;
+    const ixTo  =(dC[di]&&nmOf(dC[di]))||departSvc.stopName||state.stop.name;
+    ho.route={ origins:origins, dests:dests, ixFrom:ixFrom, ixTo:ixTo }; ho.from=0; ho.to=dests.length-1;
   }catch(e){ ho.error='fetch'; }
   ho.loading=false; renderHandoff(x);
 }
@@ -1114,10 +1123,13 @@ function renderHandoff(x){
     const opt=function(list,sel,withTime){ return list.map(function(it,i){
       const lbl=(it.name||it.id)+(withTime&&it.time?' · '+clock(it.time):'');
       return '<option value="'+i+'"'+(i===sel?' selected':'')+'>'+esc(lbl)+'</option>'; }).join(''); };
+    // The interchange stop as a non-selectable boundary: bottom of From (you pick a stop BEFORE it),
+    // top of To (you pick a stop AFTER it). `disabled` makes it visible but unpickable.
+    const bound=function(name){ return '<option disabled class="ho-ix">⇄ '+esc(name)+' · change here</option>'; };
     h='<div class="ho-pick">'
       +'<div class="ho-tgt">Open in <b>'+nm+'</b><button type="button" class="linkish" data-act="reset">change</button></div>'
-      +'<label class="ho-row"><span>From</span><select class="ho-from">'+opt(r.origins,ho.from,true)+'</select></label>'
-      +'<label class="ho-row"><span>To</span><select class="ho-to">'+opt(r.dests,ho.to,false)+'</select></label>'
+      +'<label class="ho-row"><span>From</span><select class="ho-from">'+opt(r.origins,ho.from,true)+bound(r.ixFrom)+'</select></label>'
+      +'<label class="ho-row"><span>To</span><select class="ho-to">'+bound(r.ixTo)+opt(r.dests,ho.to,true)+'</select></label>'
       +'<button type="button" class="ho-go" data-act="go">Open in '+nm+'<span class="ho-arr">↗</span></button>'
       +'</div>';
   }
@@ -1221,16 +1233,26 @@ function bindHover(marker, el, html){
     hoverPop=new maplibregl.Popup({ closeButton:false, closeOnClick:false, offset:15, className:'mtip' })
       .setLngLat(marker.getLngLat()).setHTML(html).addTo(mapApi.map); });
   el.addEventListener('mouseleave',function(){ if(hoverPop){ hoverPop.remove(); hoverPop=null; } }); }
-// The walk lines are one GeoJSON source; three line layers filter by `kind` (solid street path /
-// dashed crow-flies / flagged grey underlay). Colour/width/opacity are data-driven on sel/hasSel.
+// Walk links carry the LIST verdict colour (possible/missed/impossible/guaranteed/flagged) so the map
+// shows at a glance what works. One GeoJSON source; a background-coloured CASING under the coloured
+// lines keeps every colour — grey especially — legible on any basemap (grey / OSM / aerial). The flag
+// layer is the grey dashed crow-flies underlay for a flagged detour. Colour/width/opacity data-driven.
 function ensureWalkLayers(){ const m=mapApi.map; if(m.getSource(WALK_SRC)) return;
   m.addSource(WALK_SRC,{ type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  m.addLayer({ id:'ce-walk-casing', type:'line', source:WALK_SRC, filter:['match',['get','kind'],['solid','dash'],true,false],
+    layout:{ 'line-cap':'round', 'line-join':'round' }, paint:{ 'line-color':cssVar('--c-bg'), 'line-width':6.8, 'line-opacity':0.85 } });
   m.addLayer({ id:'ce-walk-flag', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'flag'],
     paint:{ 'line-color':cssVar('--c-faint'), 'line-width':1.4, 'line-opacity':0.8, 'line-dasharray':[2,6] } });
   m.addLayer({ id:'ce-walk-dash', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'dash'],
-    paint:{ 'line-color':cssVar('--c-walk'), 'line-width':2.6, 'line-opacity':0.62, 'line-dasharray':[2,6] } });
+    paint:{ 'line-color':cssVar('--c-walk'), 'line-width':3.8, 'line-opacity':0.92, 'line-dasharray':[2,5] } });
   m.addLayer({ id:'ce-walk-solid', type:'line', source:WALK_SRC, filter:['==',['get','kind'],'solid'],
-    layout:{ 'line-cap':'round', 'line-join':'round' }, paint:{ 'line-color':cssVar('--c-walk'), 'line-width':3.2, 'line-opacity':0.62 } }); }
+    layout:{ 'line-cap':'round', 'line-join':'round' }, paint:{ 'line-color':cssVar('--c-walk'), 'line-width':4.6, 'line-opacity':0.92 } }); }
+// Walk-link colour = the LIST verdict, so the map agrees with the panel: guaranteed teal, flagged amber,
+// else possible green / missed amber / impossible grey. Reads CSS vars, so it tracks the theme.
+function xfColor(x){ const g=guarLevel(x.guaranteed);
+  if(g==='stay'||g==='full') return cssVar('--c-guar');
+  if(x.flagged) return cssVar('--c-flag');
+  return cssVar(x.cls==='ok'?'--c-ok':x.cls==='warn'?'--c-warn':'--c-muted'); }
 function drawMap(){
   const m=mapApi.map; if(!m.__ready){ mapApi.whenReady(drawMap); return; }
   ensureWalkLayers(); clearMarkers();
@@ -1242,12 +1264,13 @@ function drawMap(){
   $('legend').style.display='';
   const aQuay=(state.stop.quays||[]).find(function(q){return q.id===anchor.quayId;});
   const dc = aQuay?[aQuay.latitude,aQuay.longitude]:state.stop.coord;
-  const vis=visibleXf(); const acc=cssVar('--c-accent'), col=cssVar('--c-walk'), faint=cssVar('--c-faint');
+  const vis=visibleXf(); const faint=cssVar('--c-faint'), acc=cssVar('--c-accent');
   const dcLL=[dc[1],dc[0]]; const bounds=[dcLL]; const feats=[];
   vis.forEach(function(x){ if(!x.a.lat)return; const ac=[x.a.lat,x.a.lon], acLL=[x.a.lon,x.a.lat]; bounds.push(acLL);
     const isSel=state.selXf===x, hasSel=!!state.selXf, hasPath=x.pts&&x.pts.length>1;
     const coords=(hasPath?x.pts:[ac,dc]).map(function(p){ return [p[1],p[0]]; });  // [lat,lng] → [lng,lat]
-    feats.push({ type:'Feature', properties:{ kind:hasPath?'solid':'dash', sel:isSel, hasSel:hasSel }, geometry:{ type:'LineString', coordinates:coords } });
+    // Selected link stays CORAL (the interactive accent), matching the selected pin — not its verdict colour.
+    feats.push({ type:'Feature', properties:{ kind:hasPath?'solid':'dash', sel:isSel, hasSel:hasSel, color:isSel?acc:xfColor(x) }, geometry:{ type:'LineString', coordinates:coords } });
     if(x.flagged) feats.push({ type:'Feature', properties:{ kind:'flag' }, geometry:{ type:'LineString', coordinates:[acLL,dcLL] } });
     // pin (Coral outline when selected, matching the selected walk link)
     const el=pinEl(x.a.mode, isSel?'sel':''); el.style.cursor='pointer';
@@ -1255,14 +1278,22 @@ function drawMap(){
     el.addEventListener('click',function(){ selectXf(x); });
     bindHover(mk, el, markerTip(x.a, x.a.stopName||state.stop.name, partnerTimeIso(x.a), partnerExpIso(x.a)));
   });
+  // Draw the selected link LAST so it sits on top of overlapping links (within each line layer,
+  // later features render above earlier ones) — otherwise the coral could hide behind a neighbour.
+  feats.sort(function(a,b){ return (a.properties.sel?1:0)-(b.properties.sel?1:0); });
   m.getSource(WALK_SRC).setData({ type:'FeatureCollection', features:feats });
-  // selected walk stands out by COLOUR (Coral), others recede; re-applied each draw (theme + selection).
-  m.setPaintProperty('ce-walk-solid','line-color',['case',['get','sel'],acc,col]);
-  m.setPaintProperty('ce-walk-solid','line-width',['case',['get','sel'],4.5,['get','hasSel'],2,3.2]);
-  m.setPaintProperty('ce-walk-solid','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.32,0.62]);
-  m.setPaintProperty('ce-walk-dash','line-color',['case',['get','sel'],acc,col]);
-  m.setPaintProperty('ce-walk-dash','line-width',['case',['get','sel'],4,['get','hasSel'],1.6,2.6]);
-  m.setPaintProperty('ce-walk-dash','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.32,0.62]);
+  // Each link keeps its verdict COLOUR (data-driven `color`); selection shows via width + opacity so the
+  // verdict stays readable while inspecting. The bg casing widens/dims in step to stay a clean halo.
+  // Re-applied each draw so theme + selection changes take effect.
+  m.setPaintProperty('ce-walk-casing','line-color',cssVar('--c-bg'));
+  m.setPaintProperty('ce-walk-casing','line-width',['case',['get','sel'],8.5,['get','hasSel'],5.4,6.8]);
+  m.setPaintProperty('ce-walk-casing','line-opacity',['case',['get','sel'],0.9,['get','hasSel'],0.5,0.82]);
+  m.setPaintProperty('ce-walk-solid','line-color',['get','color']);
+  m.setPaintProperty('ce-walk-solid','line-width',['case',['get','sel'],6,['get','hasSel'],3,4.6]);
+  m.setPaintProperty('ce-walk-solid','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.55,0.92]);
+  m.setPaintProperty('ce-walk-dash','line-color',['get','color']);
+  m.setPaintProperty('ce-walk-dash','line-width',['case',['get','sel'],5,['get','hasSel'],2.4,3.8]);
+  m.setPaintProperty('ce-walk-dash','line-opacity',['case',['get','sel'],1,['get','hasSel'],0.55,0.92]);
   m.setPaintProperty('ce-walk-flag','line-color',faint);
   const ael=pinEl(anchor.mode,'anchor');
   const amk=new maplibregl.Marker({ element:ael }).setLngLat(dcLL).addTo(m); markers.push(amk);
